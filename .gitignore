@@ -1,0 +1,5 @@
+build/
+build-*/
+*.parquet
+*.parquet.tmp
+*.smf
