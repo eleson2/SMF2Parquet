@@ -3,3 +3,5 @@ build-*/
 *.parquet
 *.parquet.tmp
 *.smf
+!tests/data/small/*.smf
+tests/data/large/
