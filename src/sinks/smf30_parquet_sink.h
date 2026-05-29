@@ -82,15 +82,16 @@ struct Smf30Builders {
 
 class Smf30ParquetSink {
 public:
-    Smf30ParquetSink(std::string out_root, std::string run_id,
+    Smf30ParquetSink(std::string customer, std::string out_root, std::string run_id,
                      std::string source_file, int64_t ingest_us)
         : source_(std::move(source_file)), ingest_(ingest_us),
-          table_("smf30", Smf30Builders::schema(), std::move(out_root), std::move(run_id)) {}
+          table_("smf30", std::move(customer), Smf30Builders::schema(), std::move(out_root), std::move(run_id)) {}
 
     void write(const smf::Smf30Record& r) {
         const auto day = CommonColumns::partition_day(r.header);
-        const uint64_t n = table_.partition(day).append(r, source_, ingest_);
-        table_.added(day, n);
+        const auto& sys = r.header.system_id;
+        const uint64_t n = table_.partition(sys, day).append(r, source_, ingest_);
+        table_.added(sys, day, n);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

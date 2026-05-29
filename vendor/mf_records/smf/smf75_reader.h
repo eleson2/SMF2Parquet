@@ -152,12 +152,18 @@ struct Smf75Record {
 
     // Page data section — one entry per page dataset; each becomes one row.
     if (page_ptr.count > 0 && page_ptr.length >= 72) {
-        out.pagesets.reserve(page_ptr.count);
-        for (uint32_t i = 0; i < page_ptr.count; ++i) {
-            const std::size_t off = page_ptr.offset + static_cast<std::size_t>(i) * page_ptr.length;
-            if (off + page_ptr.length > rec_bytes.size()) break;
-            mf::Reader er{ rec_bytes.subspan(off, page_ptr.length) };
-            out.pagesets.push_back(read_smf75_pageds(er));
+        const std::size_t max_possible = (rec_bytes.size() > page_ptr.offset)
+            ? (rec_bytes.size() - page_ptr.offset) / page_ptr.length
+            : 0;
+        const uint32_t actual_count = std::min(page_ptr.count, static_cast<uint32_t>(max_possible));
+
+        if (actual_count > 0) {
+            out.pagesets.reserve(actual_count);
+            for (uint32_t i = 0; i < actual_count; ++i) {
+                const std::size_t off = page_ptr.offset + static_cast<std::size_t>(i) * page_ptr.length;
+                mf::Reader er{ rec_bytes.subspan(off, page_ptr.length) };
+                out.pagesets.push_back(read_smf75_pageds(er));
+            }
         }
     }
 

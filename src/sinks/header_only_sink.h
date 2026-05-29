@@ -45,16 +45,17 @@ struct HeaderOnlyBuilders {
 
 class HeaderOnlySink {
 public:
-    HeaderOnlySink(std::string table_name, std::string out_root, std::string run_id,
+    HeaderOnlySink(std::string table_name, std::string customer, std::string out_root, std::string run_id,
                    std::string source_file, int64_t ingest_us)
         : source_(std::move(source_file)), ingest_(ingest_us),
-          table_(std::move(table_name), HeaderOnlyBuilders::schema(),
+          table_(std::move(table_name), std::move(customer), HeaderOnlyBuilders::schema(),
                  std::move(out_root), std::move(run_id)) {}
 
     void write(const mf::SmfHeader& h, uint16_t subtype) {
         const auto day = CommonColumns::partition_day(h);
-        table_.partition(day).append(h, subtype, source_, ingest_);
-        table_.added(day, 1);
+        const auto& sys = h.system_id;
+        table_.partition(sys, day).append(h, subtype, source_, ingest_);
+        table_.added(sys, day, 1);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

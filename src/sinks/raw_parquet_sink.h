@@ -51,16 +51,17 @@ struct RawBuilders {
 
 class RawParquetSink {
 public:
-    RawParquetSink(std::string out_root, std::string run_id,
+    RawParquetSink(std::string customer, std::string out_root, std::string run_id,
                    std::string source_file, int64_t ingest_us)
         : source_(std::move(source_file)), ingest_(ingest_us),
-          table_("raw", RawBuilders::schema(), std::move(out_root), std::move(run_id)) {}
+          table_("raw", std::move(customer), RawBuilders::schema(), std::move(out_root), std::move(run_id)) {}
 
     void write(const mf::SmfHeader& h, std::span<const std::byte> rec) {
         const auto day = CommonColumns::partition_day(h);
+        const auto& sys = h.system_id;
         // Unknown types: subtype semantics vary, so record 0 here.
-        table_.partition(day).append(h, /*subtype=*/0, rec, source_, ingest_);
-        table_.added(day, 1);
+        table_.partition(sys, day).append(h, /*subtype=*/0, rec, source_, ingest_);
+        table_.added(sys, day, 1);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

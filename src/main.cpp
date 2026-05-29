@@ -104,15 +104,15 @@ struct SinkSet {
     s2p::RawParquetSink    raw;
     s2p::HeaderOnlySink s71, s72, s73, s76, s77, s78, s79, s113;
 
-    SinkSet(const std::string& out, const std::string& run,
+    SinkSet(const std::string& cust, const std::string& out, const std::string& run,
             const std::string& src, int64_t ing)
-        : s30(out, run, src, ing), s70(out, run, src, ing),
-          s74(out, run, src, ing), s75(out, run, src, ing),
-          s99(out, run, src, ing), raw(out, run, src, ing),
-          s71 ("smf71",  out, run, src, ing), s72 ("smf72",  out, run, src, ing),
-          s73 ("smf73",  out, run, src, ing), s76 ("smf76",  out, run, src, ing),
-          s77 ("smf77",  out, run, src, ing), s78 ("smf78",  out, run, src, ing),
-          s79 ("smf79",  out, run, src, ing), s113("smf113", out, run, src, ing) {}
+        : s30(cust, out, run, src, ing), s70(cust, out, run, src, ing),
+          s74(cust, out, run, src, ing), s75(cust, out, run, src, ing),
+          s99(cust, out, run, src, ing), raw(cust, out, run, src, ing),
+          s71 ("smf71",  cust, out, run, src, ing), s72 ("smf72",  cust, out, run, src, ing),
+          s73 ("smf73",  cust, out, run, src, ing), s76 ("smf76",  cust, out, run, src, ing),
+          s77 ("smf77",  cust, out, run, src, ing), s78 ("smf78",  cust, out, run, src, ing),
+          s79 ("smf79",  cust, out, run, src, ing), s113("smf113", cust, out, run, src, ing) {}
 
     void close() {
         s30.close(); s70.close(); s71.close(); s72.close(); s73.close();
@@ -183,11 +183,12 @@ void report_counts(const Dispatcher& d, const char* input) {
 
 int main(int argc, char* argv[]) {
 #ifdef SMF2PARQUET_WITH_PARQUET
-    if (argc != 3) {
-        std::fprintf(stderr, "Usage: %s <input.smf> <out_dir>\n", argv[0]);
+    if (argc < 3 || argc > 4) {
+        std::fprintf(stderr, "Usage: %s <input.smf> <out_dir> [customer]\n", argv[0]);
         return 1;
     }
     const char* out_dir = argv[2];
+    const std::string customer = (argc == 4) ? argv[3] : "INTERNAL";
 #else
     if (argc != 2) {
         std::fprintf(stderr, "Usage: %s <input.smf>\n", argv[0]);
@@ -210,7 +211,7 @@ int main(int argc, char* argv[]) {
         std::strftime(tsbuf, sizeof tsbuf, "%Y%m%dT%H%M%SZ", &tmv);
         const std::string run_id = std::string(tsbuf) + "-" + std::to_string(::getpid());
 
-        SinkSet sinks{out_dir, run_id, input, ingest_us};
+        SinkSet sinks{customer, out_dir, run_id, input, ingest_us};
         d.sinks = &sinks;
 
         if (in.size > 0) mf::process_smf_file({in.data, in.size}, d);

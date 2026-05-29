@@ -1,0 +1,92 @@
+rows=1 cols=22
+schema:
+smf_timestamp: timestamp[us, tz=UTC]
+smf_date: date32[day]
+system_id: string
+subsystem_id: string
+record_type: uint8
+subtype: uint16
+flags: uint8
+source_file: string
+ingest_ts: timestamp[us, tz=UTC]
+interval_start_ts: timestamp[us, tz=UTC]
+interval_ms: uint32
+sample_count: uint16
+sysplex_name: string
+cpc_model: string
+zaap_online: uint16
+ziip_online: uint16
+cp_count: uint32
+cp_wait_ms: uint32
+cp_parked_ms: uint32
+ziip_lp_count: uint32
+ziip_wait_ms: uint32
+ziip_parked_ms: uint32
+data:
+smf_timestamp:   [
+    2025-04-11 01:00:00.000000Z
+  ]
+smf_date:   [
+    2025-04-11
+  ]
+system_id:   [
+    "SYS2"
+  ]
+subsystem_id:   [
+    "JES2"
+  ]
+record_type:   [
+    70
+  ]
+subtype:   [
+    1
+  ]
+flags:   [
+    0
+  ]
+source_file:   [
+    "test.smf"
+  ]
+ingest_ts:   [
+    2026-05-29 14:55:58.289885Z
+  ]
+interval_start_ts:   [
+    null
+  ]
+interval_ms:   [
+    0
+  ]
+sample_count:   [
+    0
+  ]
+sysplex_name:   [
+    ""
+  ]
+cpc_model:   [
+    ""
+  ]
+zaap_online:   [
+    0
+  ]
+ziip_online:   [
+    0
+  ]
+cp_count:   [
+    0
+  ]
+cp_wait_ms:   [
+    0
+  ]
+cp_parked_ms:   [
+    0
+  ]
+ziip_lp_count:   [
+    0
+  ]
+ziip_wait_ms:   [
+    0
+  ]
+ziip_parked_ms:   [
+    0
+  ]
+

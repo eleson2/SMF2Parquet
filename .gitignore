@@ -5,3 +5,4 @@ build-*/
 *.smf
 !tests/data/small/*.smf
 tests/data/large/
+parquet/

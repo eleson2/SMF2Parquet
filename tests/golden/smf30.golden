@@ -1,0 +1,156 @@
+rows=5 cols=19
+schema:
+smf_timestamp: timestamp[us, tz=UTC]
+smf_date: date32[day]
+system_id: string
+subsystem_id: string
+record_type: uint8
+subtype: uint16
+flags: uint8
+source_file: string
+ingest_ts: timestamp[us, tz=UTC]
+job_name: string
+step_name: string
+job_id: string
+program_name: string
+elapsed_sec: double
+cpu_sec: double
+tcb_sec: double
+srb_sec: double
+ziip_sec: double
+excp_count: uint32
+data:
+smf_timestamp:   [
+    2025-04-10 01:00:00.000000Z,
+    2025-04-10 01:00:01.000000Z,
+    2025-04-10 01:00:02.000000Z,
+    2025-04-10 01:00:03.000000Z,
+    2025-04-10 01:00:04.000000Z
+  ]
+smf_date:   [
+    2025-04-10,
+    2025-04-10,
+    2025-04-10,
+    2025-04-10,
+    2025-04-10
+  ]
+system_id:   [
+    "SYS1",
+    "SYS1",
+    "SYS1",
+    "SYS1",
+    "SYS1"
+  ]
+subsystem_id:   [
+    "JES2",
+    "JES2",
+    "JES2",
+    "JES2",
+    "JES2"
+  ]
+record_type:   [
+    30,
+    30,
+    30,
+    30,
+    30
+  ]
+subtype:   [
+    1,
+    1,
+    1,
+    1,
+    1
+  ]
+flags:   [
+    0,
+    0,
+    0,
+    0,
+    0
+  ]
+source_file:   [
+    "test.smf",
+    "test.smf",
+    "test.smf",
+    "test.smf",
+    "test.smf"
+  ]
+ingest_ts:   [
+    2026-05-29 14:06:16.740588Z,
+    2026-05-29 14:06:16.740588Z,
+    2026-05-29 14:06:16.740588Z,
+    2026-05-29 14:06:16.740588Z,
+    2026-05-29 14:06:16.740588Z
+  ]
+job_name:   [
+    "",
+    "",
+    "",
+    "",
+    ""
+  ]
+step_name:   [
+    "",
+    "",
+    "",
+    "",
+    ""
+  ]
+job_id:   [
+    "",
+    "",
+    "",
+    "",
+    ""
+  ]
+program_name:   [
+    "",
+    "",
+    "",
+    "",
+    ""
+  ]
+elapsed_sec:   [
+    0,
+    0,
+    0,
+    0,
+    0
+  ]
+cpu_sec:   [
+    0,
+    0,
+    0,
+    0,
+    0
+  ]
+tcb_sec:   [
+    0,
+    0,
+    0,
+    0,
+    0
+  ]
+srb_sec:   [
+    0,
+    0,
+    0,
+    0,
+    0
+  ]
+ziip_sec:   [
+    0,
+    0,
+    0,
+    0,
+    0
+  ]
+excp_count:   [
+    0,
+    0,
+    0,
+    0,
+    0
+  ]
+
