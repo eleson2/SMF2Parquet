@@ -13,6 +13,23 @@
 --   excp_count,                                           -- I/O (EXCP)
 --   customer, path_system_id, filename, year, month       -- path-derived (init.sql)
 
+-- 0) All jobs that ran on each date — INCLUDING zero-consumption jobs (no filter).
+--    The "did everything that should run, run?" report. Runs against the smf30
+--    view directly, so it works with or without the dbt marts built.
+SELECT
+    smf_date,
+    system_id,
+    coalesce(nullif(job_name, ''),     '(no job name)') AS job_name,
+    coalesce(nullif(program_name, ''), '(none)')        AS program_name,
+    count(*)                  AS step_runs,
+    round(sum(cpu_sec),   2)  AS cpu_sec,
+    round(sum(ziip_sec),  2)  AS ziip_sec,
+    round(sum(elapsed_sec), 2) AS elapsed_sec,
+    sum(excp_count)           AS excp
+FROM smf30
+GROUP BY ALL
+ORDER BY smf_date, system_id, cpu_sec DESC, job_name;
+
 -- 1) Daily consumption by system and job — the backbone of the consumption report.
 --    GP CPU = tcb+srb; zIIP offload shown separately. CPU is already net seconds.
 SELECT

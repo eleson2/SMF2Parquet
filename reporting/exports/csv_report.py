@@ -25,6 +25,13 @@ import duckdb
 
 # name -> SQL. Each becomes <name>-<YYYYMMDD>.csv. Edit / add freely.
 REPORTS: dict[str, str] = {
+    # Every job that ran on each date, INCLUDING zero-consumption jobs (no filter).
+    "jobs_by_date": """
+        SELECT smf_date, customer, system_id, application, job_label AS job_name,
+               program_name, step_runs, cpu_sec, ziip_sec, elapsed_sec, excp
+        FROM rpt_jobs_by_date
+        ORDER BY smf_date, system_id, cpu_sec DESC, job_name
+    """,
     "consumption_daily": """
         SELECT smf_date, customer, application, app_group, system_id, job_name,
                step_runs, cpu_sec, ziip_sec, elapsed_sec, excp

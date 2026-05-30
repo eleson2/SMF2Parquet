@@ -7,6 +7,8 @@ dbt/logs/
 dbt/.user.yml
 *.duckdb
 *.duckdb.wal
+# generated CSV report output (csv_report.py default out dir)
+exports/out/
 # python venv for dbt
 .venv/
 # local secrets
