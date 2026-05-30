@@ -12,9 +12,12 @@ RUN apt-get update -q \
  && rm -rf /var/lib/apt/lists/*
 
 # DuckDB engine + driver, Postgres driver (metadata DB), and the report extras.
+# IMPORTANT: duckdb must be >= the version that WROTE marts.duckdb (1.5.3) — a
+# DuckDB file cannot be opened by an older engine. Keep this in step with the
+# version dbt/the CLI use (see reporting/README.md).
 RUN pip install --no-cache-dir \
-      "duckdb==1.1.3" \
-      "duckdb-engine==0.13.6" \
+      "duckdb==1.5.3" \
+      "duckdb-engine" \
       "psycopg2-binary" \
       "Pillow"
 

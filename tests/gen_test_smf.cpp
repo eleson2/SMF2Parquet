@@ -47,7 +47,27 @@ void put_u32_be(std::vector<uint8_t>& b, uint32_t v) {
     b.push_back(static_cast<uint8_t>(v));
 }
 void put_ebcdic4(std::vector<uint8_t>& b, const char* s) {
-    for (int i = 0; i < 4; ++i) b.push_back(ebcdic_cp037(s[i] ? s[i] : ' '));
+    for (int i = 0; i < 4; ++i) {
+        if (s[i] == '\0') {
+            for (; i < 4; ++i) b.push_back(ebcdic_cp037(' '));
+            break;
+        }
+        b.push_back(ebcdic_cp037(s[i]));
+    }
+}
+void put_ebcdic8(std::vector<uint8_t>& b, const char* s) {
+    for (int i = 0; i < 8; ++i) {
+        if (s[i] == '\0') {
+            for (; i < 8; ++i) b.push_back(ebcdic_cp037(' '));
+            break;
+        }
+        b.push_back(ebcdic_cp037(s[i]));
+    }
+}
+void put_triplet(std::vector<uint8_t>& b, uint32_t offset, uint32_t length, uint32_t count) {
+    put_u32_be(b, offset);
+    put_u32_be(b, length);
+    put_u32_be(b, count);
 }
 // 4-byte packed decimal (COMP-3) YYYYDDD with sign nibble 0xC.
 void put_packed_yyyyddd(std::vector<uint8_t>& b, int year, int ddd) {
@@ -62,13 +82,13 @@ void put_packed_yyyyddd(std::vector<uint8_t>& b, int year, int ddd) {
     for (int i = 0; i < 4; ++i) b.push_back(p[i]);
 }
 
-void put_header(std::vector<uint8_t>& body, uint8_t type, int year, int ddd, uint32_t time_hs) {
+void put_header(std::vector<uint8_t>& body, uint8_t type, int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
     put_u16_be(body, 0);             // record_len placeholder (filled by caller)
     body.push_back(0x00);           // flags
     body.push_back(type);           // record type
     put_u32_be(body, time_hs);      // time in hundredths of seconds since midnight
     put_packed_yyyyddd(body, year, ddd);
-    put_ebcdic4(body, "SYS1");
+    put_ebcdic4(body, sys_id);
     put_ebcdic4(body, "JES2");
 }
 
@@ -83,17 +103,123 @@ std::vector<uint8_t> finish(std::vector<uint8_t> body) {
 }
 
 std::vector<uint8_t> make_record(uint8_t type, bool has_subtype, uint16_t subtype,
-                                 int year, int ddd, uint32_t time_hs) {
+                                 int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
     std::vector<uint8_t> body;
-    put_header(body, type, year, ddd, time_hs);
+    put_header(body, type, year, ddd, time_hs, sys_id);
     if (has_subtype) put_u16_be(body, subtype);
     return finish(std::move(body));
 }
 
-std::vector<uint8_t> make_rmf_record(uint8_t type, uint16_t subtype, int year, int ddd, uint32_t time_hs,
-                                     int n_triplets, int data_len, int n_entries = 1) {
+std::vector<uint8_t> make_smf30_record(uint16_t subtype, int year, int ddd, uint32_t time_hs,
+                                       const char* job_name, const char* step_name,
+                                       uint32_t cpu_hs, uint32_t excp, const char* sys_id = "SYS1") {
     std::vector<uint8_t> body;
-    put_header(body, type, year, ddd, time_hs);
+    put_header(body, 30, year, ddd, time_hs, sys_id);
+    put_u16_be(body, subtype);
+    
+    // Triplets start at offset 22
+    // Index 0: Subsystem (ignored)
+    // Index 1: Identification (SMF30IOF)
+    // Index 2: I/O Activity   (SMF30UOF)
+    // Index 3: Completion     (SMF30TOF)
+    // Index 4: CPU Accounting (SMF30COF)
+    
+    uint32_t current_off = 22 + 5 * 12;
+    
+    put_triplet(body, 0, 0, 0); // 0
+    
+    uint32_t id_off = current_off;
+    put_triplet(body, id_off, 32, 1); // 1
+    current_off += 32;
+    
+    uint32_t io_off = current_off;
+    put_triplet(body, io_off, 4, 1); // 2
+    current_off += 4;
+    
+    uint32_t perf_off = current_off;
+    put_triplet(body, perf_off, 8, 1); // 3
+    current_off += 8;
+    
+    uint32_t proc_off = current_off;
+    put_triplet(body, proc_off, 12, 1); // 4
+    current_off += 12;
+
+    // ID section
+    put_ebcdic8(body, job_name);     // job
+    put_ebcdic8(body, step_name);    // step
+    put_ebcdic8(body, "JOB01234");   // id
+    put_ebcdic8(body, "MYPROG");     // program
+
+    // IO section
+    put_u32_be(body, excp);          // excp
+
+    // Perf section
+    put_u32_be(body, cpu_hs + 100);  // elapsed (fake)
+    put_u32_be(body, cpu_hs);        // total cpu
+
+    // Proc section
+    put_u32_be(body, cpu_hs * 8 / 10); // tcb
+    put_u32_be(body, cpu_hs * 2 / 10); // srb
+    put_u32_be(body, cpu_hs / 2);      // ziip
+
+    return finish(std::move(body));
+}
+
+std::vector<uint8_t> make_smf70_record(int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
+    std::vector<uint8_t> body;
+    put_header(body, 70, year, ddd, time_hs, sys_id);
+    put_u16_be(body, 1); // subtype
+    
+    // Triplets at offset 22:
+    // [0] Product
+    // [1] Control
+    // [2] CPU data
+    
+    uint32_t current_off = 22 + 3 * 12;
+    put_triplet(body, current_off, 48, 1); // Product
+    uint32_t prod_off = current_off;
+    current_off += 48;
+    
+    put_triplet(body, current_off, 16, 1); // Control
+    uint32_t ctrl_off = current_off;
+    current_off += 16;
+    
+    put_triplet(body, current_off, 16, 1); // CPU data (1 entry)
+    uint32_t cpu_off = current_off;
+    current_off += 16;
+
+    // Product Section
+    body.push_back(0); // version
+    for(int i=0; i<8; ++i) body.push_back(ebcdic_cp037("RMF"[i%3])); // product
+    put_u32_be(body, time_hs); // start time
+    put_packed_yyyyddd(body, year, ddd); // start date
+    put_u32_be(body, 90000); // interval (15 mins)
+    put_u16_be(body, 1000); // sample count
+    body.push_back(0); // flags
+    for(int i=0; i<4; ++i) body.push_back(0); // cycle
+    for(int i=0; i<8; ++i) body.push_back(ebcdic_cp037("z/OS 3.1"[i])); // mvs level
+    for(int i=0; i<4; ++i) body.push_back(0);
+    put_ebcdic8(body, "PLEX1"); // sysplex
+
+    // Control Section
+    put_ebcdic4(body, "8561"); // model
+    put_u16_be(body, 0); // zaap
+    put_u16_be(body, 2); // ziip online
+    for(int i=0; i<8; ++i) body.push_back(0);
+
+    // CPU Data Section (1 entry)
+    put_u32_be(body, 50000); // wait time
+    for(int i=0; i<6; ++i) body.push_back(0);
+    for(int i=0; i<3; ++i) body.push_back(0);
+    body.push_back(0); // type 0 = GP
+
+    return finish(std::move(body));
+}
+
+std::vector<uint8_t> make_rmf_record(uint8_t type, uint16_t subtype, int year, int ddd, uint32_t time_hs,
+                                     int n_triplets, int data_len, int n_entries = 1, const char* sys_id = "SYS1") {
+    std::vector<uint8_t> body;
+    put_header(body, type, year, ddd, time_hs, sys_id);
     put_u16_be(body, subtype);
     put_u32_be(body, static_cast<uint32_t>(n_entries));   // SMF*TRN
     const uint32_t data_off = 26u + static_cast<uint32_t>(n_triplets) * 12u;
@@ -193,29 +319,45 @@ int main(int argc, char* argv[]) {
         }
     } else if (profile == "large") {
         // 24 hours = 96 intervals of 15 mins
+        const char* sys = "SYS1";
         for (int intv = 0; intv < 96; ++intv) {
             uint32_t t = intv * 15 * 60 * 100;
-            // Interval records
-            emit(make_record(70, true, 1, Y, DAY, t));
-            emit(make_record(71, false, 0, Y, DAY, t));
-            emit(make_record(72, true, 1, Y, DAY, t));
-            emit(make_record(73, false, 0, Y, DAY, t));
-            emit(make_record(76, true, 1, Y, DAY, t));
-            emit(make_record(77, true, 1, Y, DAY, t));
-            emit(make_record(78, true, 1, Y, DAY, t));
-            emit(make_record(79, false, 0, Y, DAY, t));
-            emit(make_record(99, true, 0, Y, DAY, t));
-            emit(make_record(113, true, 1, Y, DAY, t));
+            
+            // System-level CPU activity
+            emit(make_smf70_record(Y, DAY, t, sys));
+            
+            // Interval records (Subtype 2) for long-running regions
+            emit(make_smf30_record(2, Y, DAY, t, "CICSPROD", "CICSSTEP", 5000, 1200, sys));
+            emit(make_smf30_record(2, Y, DAY, t, "DB2MSTR",  "DB2STEP",  2000, 500,  sys));
+            emit(make_smf30_record(2, Y, DAY, t, "DB2DIST",  "DISTSTEP", 3000, 800,  sys));
+            
+            // Raw records for CICS (110) and DB2 (101)
+            emit(make_record(110, false, 0, Y, DAY, t, sys));
+            emit(make_record(101, false, 0, Y, DAY, t, sys));
+
+            // RMF stub records
+            emit(make_record(71, false, 0, Y, DAY, t, sys));
+            emit(make_record(72, true, 1, Y, DAY, t, sys));
+            emit(make_record(73, false, 0, Y, DAY, t, sys));
+            emit(make_record(76, true, 1, Y, DAY, t, sys));
+            emit(make_record(77, true, 1, Y, DAY, t, sys));
+            emit(make_record(78, true, 1, Y, DAY, t, sys));
+            emit(make_record(79, false, 0, Y, DAY, t, sys));
+            emit(make_record(99, true, 0, Y, DAY, t, sys));
+            emit(make_record(113, true, 1, Y, DAY, t, sys));
             
             // Page data sets: 10 entries
-            emit(make_rmf_record(75, 1, Y, DAY, t, 2, 80, 10)); 
+            emit(make_rmf_record(75, 1, Y, DAY, t, 2, 80, 10, sys)); 
 
             // Device activity: 1000 devices
-            emit(make_rmf_record(74, 1, Y, DAY, t, 3, 64, 1000));
+            emit(make_rmf_record(74, 1, Y, DAY, t, 3, 64, 1000, sys));
 
-            // Type 30 records: 100 per interval
-            for (int i = 0; i < 100; ++i) {
-                emit(make_record(30, true, 4, Y, DAY, t + i * 10));
+            // Batch jobs (Subtype 4: Termination) - ~5 per interval
+            const char* jobs[] = {"PAYROLL", "BILLING", "BACKUP", "PURGE", "REPORT"};
+            for (int i = 0; i < 5; ++i) {
+                uint32_t cpu = 1000 + (rand() % 5000);
+                uint32_t excp = 500 + (rand() % 2000);
+                emit(make_smf30_record(4, Y, DAY, t + (i+1)*60*100, jobs[i], "STEP1", cpu, excp, sys));
             }
         }
     } else if (profile == "edge") {

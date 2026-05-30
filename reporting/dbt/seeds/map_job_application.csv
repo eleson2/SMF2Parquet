@@ -1,6 +1,9 @@
 job_pattern,application,app_group
-PROD*,Billing,FinanceCo
-PAY*,Payroll,FinanceCo
+BILLING,Billing,FinanceCo
+PAYROLL,Payroll,FinanceCo
+BACKUP,Maintenance,Platform
+PURGE,Maintenance,Platform
+REPORT,Reporting,Internal
 DB2*,Database,Platform
 CICS*,OnlineBanking,RetailCo
 TEST*,QA,Internal
