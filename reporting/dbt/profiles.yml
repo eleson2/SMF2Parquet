@@ -1,0 +1,17 @@
+# dbt-duckdb profile. Kept inside the project for portability; point dbt at it
+# with `dbt build --profiles-dir .` (or copy to ~/.dbt/profiles.yml).
+#
+# The single .duckdb file this builds is what Apache Superset opens read-only
+# (DuckDB allows concurrent readers). Marts are materialized as tables; staging
+# stays as views over the external Parquet, so a rebuild is cheap and the heavy
+# Parquet is never copied.
+smf_reporting:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Output database that Superset reads. Override with MARTS_DB env var.
+      path: "{{ env_var('MARTS_DB', 'marts.duckdb') }}"
+      threads: 4
+      # DuckDB extensions needed by the models (none beyond core today).
+      extensions: []

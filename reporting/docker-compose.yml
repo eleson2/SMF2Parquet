@@ -1,0 +1,84 @@
+# SMF reporting stack: Apache Superset (dashboards + scheduled email reports)
+# over the DuckDB marts that dbt builds. All images are OSS/freeware.
+#
+#   superset        web UI (dashboards, SQL Lab, drill-down)
+#   superset-worker Celery worker — async queries + report rendering
+#   superset-beat   Celery beat   — fires scheduled reports (Phase D)
+#   superset-init   one-shot: db upgrade, admin user, register DuckDB connection
+#   postgres        Superset's own metadata DB (NOT the analytics data)
+#   redis           Celery broker + cache
+#
+# Analytics data is the read-only DuckDB file ${MARTS_DB_HOST_PATH}, mounted at
+# /data/marts.duckdb. The Parquet source-of-truth is mounted read-only too so
+# SQL Lab can drill into raw records when needed.
+
+x-superset-common: &superset-common
+  build:
+    context: ./superset
+  env_file: .env
+  environment:
+    SUPERSET_DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    REDIS_HOST: redis
+    MARTS_DB_PATH: /data/marts.duckdb
+    CHROME_BIN: /usr/bin/chromium
+    PYTHONPATH: /app/pythonpath
+  volumes:
+    - ./superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    - ./superset/bootstrap.sh:/app/bootstrap.sh:ro
+    - ${MARTS_DB_HOST_PATH:-./dbt/marts.duckdb}:/data/marts.duckdb:ro
+    - ${SMF_DATA_ROOT:-./sample_out}:/data/parquet:ro
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis:    { condition: service_started }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+
+  superset-init:
+    <<: *superset-common
+    command: ["bash", "/app/bootstrap.sh"]
+    restart: "no"
+
+  superset:
+    <<: *superset-common
+    command: ["gunicorn", "--bind", "0.0.0.0:8088", "--workers", "4",
+              "--timeout", "120", "superset.app:create_app()"]
+    ports:
+      - "${SUPERSET_PORT:-8088}:8088"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_started }
+      superset-init: { condition: service_completed_successfully }
+
+  superset-worker:
+    <<: *superset-common
+    command: ["celery", "--app=superset.tasks.celery_app:app", "worker", "-O", "fair", "-c", "2"]
+    depends_on:
+      superset-init: { condition: service_completed_successfully }
+
+  superset-beat:
+    <<: *superset-common
+    command: ["celery", "--app=superset.tasks.celery_app:app", "beat", "--pidfile=/tmp/celerybeat.pid"]
+    depends_on:
+      superset-init: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:
+  redisdata:

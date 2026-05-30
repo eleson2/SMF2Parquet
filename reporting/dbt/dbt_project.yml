@@ -1,0 +1,34 @@
+name: smf_reporting
+version: "1.0.0"
+config-version: 2
+
+profile: smf_reporting
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+# data_root = the SMF2Parquet output directory (the Parquet "source of truth").
+# Override per environment:  dbt build --vars 'data_root: /path/to/out'
+# or set the SMF_DATA_ROOT env var (see profiles.yml note).
+# data_root resolves relative to the dbt CWD (the project dir). The default
+# points at reporting/sample_out two levels up. Prefer an ABSOLUTE path in
+# production via SMF_DATA_ROOT, e.g. /srv/smf/out.
+vars:
+  data_root: "{{ env_var('SMF_DATA_ROOT', '../../sample_out') }}"
+
+models:
+  smf_reporting:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+    dim:
+      +materialized: table
+
+seeds:
+  smf_reporting:
+    +quote_columns: false

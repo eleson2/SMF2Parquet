@@ -1,0 +1,6 @@
+job_pattern,application,app_group
+PROD*,Billing,FinanceCo
+PAY*,Payroll,FinanceCo
+DB2*,Database,Platform
+CICS*,OnlineBanking,RetailCo
+TEST*,QA,Internal

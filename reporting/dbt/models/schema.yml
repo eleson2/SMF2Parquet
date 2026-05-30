@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: stg_smf30
+    description: Typed/renamed view over SMF type 30 (job/step accounting).
+    columns:
+      - name: smf_date
+        description: Event date (date32 from the SMF header).
+        tests: [not_null]
+      - name: system_id
+        tests: [not_null]
+
+  - name: dim_application
+    description: >
+      (customer, job_name) -> business application, driven by the editable seed
+      map_job_application.csv. Unmatched -> '(unmapped)'.
+    columns:
+      - name: job_name
+        tests: [not_null]
+      - name: application
+        tests: [not_null]
+      # Surrogate key proves one row per (customer, job_name) using only
+      # built-in tests (no dbt_utils dependency).
+      - name: app_key
+        tests: [unique, not_null]
+
+  - name: fct_job_consumption
+    description: One row per SMF30 job/step run, enriched with application.
+    columns:
+      - name: application
+        tests: [not_null]
+      - name: cpu_sec
+        tests:
+          - not_null
+
+  - name: agg_consumption_daily
+    description: Daily consumption by customer/application/system/job.
+    columns:
+      - name: cpu_sec
+        tests: [not_null]
+
+seeds:
+  - name: map_job_application
+    description: >
+      USER-EDITABLE. Glob patterns (PROD*, CICS*, ...) -> application + group.
+      Edit and re-run `dbt seed && dbt run`; no SMF re-ingest needed.
+    columns:
+      - name: job_pattern
+        tests: [not_null, unique]
+      - name: application
+        tests: [not_null]

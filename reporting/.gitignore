@@ -1,0 +1,13 @@
+# Local sample dataset produced by gen_test_smf (not source)
+/sample_out/
+# dbt build artifacts
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+*.duckdb
+*.duckdb.wal
+# python venv for dbt
+.venv/
+# local secrets
+.env

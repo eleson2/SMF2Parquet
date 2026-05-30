@@ -1,0 +1,16 @@
+# Example cron entries for the SMF reporting pipeline (primitive scheduling).
+# Install with:  crontab reporting/exports/crontab.example   (edit paths first)
+#
+# Superset's own Alerts & Reports handle the emailed PDF dashboards (Phase D);
+# these cron jobs handle (1) rebuilding the marts after new SMF batches land and
+# (2) the headless CSV feeds for Excel users.
+
+REPORT_DIR=/srv/smf/SMF2Parquet/reporting
+DATA_ROOT=/srv/smf/out
+
+# Rebuild dbt marts every hour (after the ingest cadence). marts.duckdb is what
+# Superset reads; dbt writes it atomically enough for the read-only readers.
+5 * * * * cd $REPORT_DIR/dbt && ../.venv/bin/dbt build --profiles-dir . --project-dir . --vars "data_root: $DATA_ROOT" >> /var/log/smf-dbt.log 2>&1
+
+# Nightly CSV pack for Excel users, dropped into a shared folder.
+30 6 * * * cd $REPORT_DIR && .venv/bin/python exports/csv_report.py --db dbt/marts.duckdb --out /srv/smf/reports/csv >> /var/log/smf-csv.log 2>&1
