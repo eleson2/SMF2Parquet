@@ -41,6 +41,55 @@
 
 namespace smf {
 
+namespace smf70 {
+enum class FieldID : uint32_t {
+    // Header
+    NONE          = static_cast<uint32_t>(CommonFieldID::NONE),   // sentinel: field not found
+    SYSTEM_ID     = static_cast<uint32_t>(CommonFieldID::SYSTEM_ID),
+    SUBSYSTEM_ID  = static_cast<uint32_t>(CommonFieldID::SUBSYSTEM_ID),
+    RECORD_TYPE   = static_cast<uint32_t>(CommonFieldID::RECORD_TYPE),
+    SUBTYPE       = static_cast<uint32_t>(CommonFieldID::SUBTYPE),
+    SMF_TIMESTAMP = static_cast<uint32_t>(CommonFieldID::SMF_TIMESTAMP),
+    SMF_DATE      = static_cast<uint32_t>(CommonFieldID::SMF_DATE),
+
+    // Product Section
+    INTERVAL_MS   = 100,
+    SAMPLE_COUNT  = 101,
+    SYSPLEX_NAME  = 102,
+
+    // Control Section
+    CPC_MODEL     = 200,
+
+    // Aggregated Metrics
+    CP_COUNT      = 300,
+    CP_WAIT_MS    = 301,
+    ZIIP_COUNT    = 302,
+    ZIIP_WAIT_MS  = 303,
+};
+
+[[nodiscard]] inline FieldID smf70_lookup_field(std::string_view name) {
+    if (name == "SYSTEM_ID")     return FieldID::SYSTEM_ID;
+    if (name == "SUBSYSTEM_ID")  return FieldID::SUBSYSTEM_ID;
+    if (name == "RECORD_TYPE")   return FieldID::RECORD_TYPE;
+    if (name == "SUBTYPE")       return FieldID::SUBTYPE;
+    if (name == "SMF_TIMESTAMP") return FieldID::SMF_TIMESTAMP;
+    if (name == "SMF_DATE")      return FieldID::SMF_DATE;
+
+    if (name == "SMF70INT")      return FieldID::INTERVAL_MS;
+    if (name == "SMF70SAM")      return FieldID::SAMPLE_COUNT;
+    if (name == "SMF70XNM")      return FieldID::SYSPLEX_NAME;
+    
+    if (name == "SMF70MOD")      return FieldID::CPC_MODEL;
+    
+    if (name == "CP_COUNT")      return FieldID::CP_COUNT;
+    if (name == "CP_WAIT_MS")    return FieldID::CP_WAIT_MS;
+    if (name == "ZIIP_COUNT")    return FieldID::ZIIP_COUNT;
+    if (name == "ZIIP_WAIT_MS")  return FieldID::ZIIP_WAIT_MS;
+
+    return FieldID::NONE;
+}
+} // namespace smf70
+
 /* ── Intermediate result structures ────────────────────────────────────── */
 
 struct Smf70Product {
@@ -75,6 +124,29 @@ struct Smf70Record {
     uint32_t ziip_lp_count{0};     // number of zIIP logical processors
     uint64_t ziip_wait_hund{0};
     uint64_t ziip_parked_hund{0};
+
+    [[nodiscard]] mf::FieldValue get_field(smf70::FieldID fid) const {
+        using namespace smf70;
+        switch (fid) {
+            case FieldID::SYSTEM_ID:     return mf::FieldValue::from_string(header.system_id);
+            case FieldID::SUBSYSTEM_ID:  return mf::FieldValue::from_string(header.subsystem_id);
+            case FieldID::RECORD_TYPE:   return mf::FieldValue::from_int64(header.record_type);
+            case FieldID::SUBTYPE:       return mf::FieldValue::from_int64(subtype);
+            
+            case FieldID::INTERVAL_MS:   return mf::FieldValue::from_double(product.interval_hund * 10.0);
+            case FieldID::SAMPLE_COUNT:  return mf::FieldValue::from_int64(product.sample_count);
+            case FieldID::SYSPLEX_NAME:  return mf::FieldValue::from_string(product.sysplex_name);
+            
+            case FieldID::CPC_MODEL:     return mf::FieldValue::from_string(control.cpc_model);
+            
+            case FieldID::CP_COUNT:      return mf::FieldValue::from_int64(cp_count);
+            case FieldID::CP_WAIT_MS:    return mf::FieldValue::from_double(cp_wait_hund * 10.0);
+            case FieldID::ZIIP_COUNT:    return mf::FieldValue::from_int64(ziip_lp_count);
+            case FieldID::ZIIP_WAIT_MS:  return mf::FieldValue::from_double(ziip_wait_hund * 10.0);
+            
+            default:                     return mf::FieldValue::null();
+        }
+    }
 };
 
 /* ── Section parsers ────────────────────────────────────────────────────── */

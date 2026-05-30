@@ -50,6 +50,62 @@
 
 namespace smf {
 
+namespace smf30 {
+enum class FieldID : uint32_t {
+    // Header (mirrors CommonFieldID)
+    NONE          = static_cast<uint32_t>(CommonFieldID::NONE),   // sentinel: field not found
+    SYSTEM_ID     = static_cast<uint32_t>(CommonFieldID::SYSTEM_ID),
+    SUBSYSTEM_ID  = static_cast<uint32_t>(CommonFieldID::SUBSYSTEM_ID),
+    RECORD_TYPE   = static_cast<uint32_t>(CommonFieldID::RECORD_TYPE),
+    SUBTYPE       = static_cast<uint32_t>(CommonFieldID::SUBTYPE),
+    SMF_TIMESTAMP = static_cast<uint32_t>(CommonFieldID::SMF_TIMESTAMP),
+    SMF_DATE      = static_cast<uint32_t>(CommonFieldID::SMF_DATE),
+
+    // Identification
+    JOB_NAME      = 100,
+    STEP_NAME     = 101,
+    JOB_ID        = 102,
+    PROGRAM_NAME  = 103,
+
+    // Performance
+    ELAPSED_SEC   = 200,
+    CPU_SEC       = 201,
+
+    // CPU Accounting
+    TCB_SEC       = 300,
+    SRB_SEC       = 301,
+    ZIIP_SEC      = 302,
+
+    // IO
+    EXCP_COUNT    = 400,
+};
+
+[[nodiscard]] inline FieldID smf30_lookup_field(std::string_view name) {
+    if (name == "SYSTEM_ID")     return FieldID::SYSTEM_ID;
+    if (name == "SUBSYSTEM_ID")  return FieldID::SUBSYSTEM_ID;
+    if (name == "RECORD_TYPE")   return FieldID::RECORD_TYPE;
+    if (name == "SUBTYPE")       return FieldID::SUBTYPE;
+    if (name == "SMF_TIMESTAMP") return FieldID::SMF_TIMESTAMP;
+    if (name == "SMF_DATE")      return FieldID::SMF_DATE;
+    
+    if (name == "SMF30JBN")      return FieldID::JOB_NAME;
+    if (name == "SMF30STM")      return FieldID::STEP_NAME;
+    if (name == "SMF30JNM")      return FieldID::JOB_ID;
+    if (name == "SMF30PGM")      return FieldID::PROGRAM_NAME;
+    
+    if (name == "SMF30ETE")      return FieldID::ELAPSED_SEC;
+    if (name == "SMF30CTE")      return FieldID::CPU_SEC;
+    
+    if (name == "SMF30TCB")      return FieldID::TCB_SEC;
+    if (name == "SMF30SRB")      return FieldID::SRB_SEC;
+    if (name == "SMF30ZIT")      return FieldID::ZIIP_SEC;
+    
+    if (name == "SMF30EXC")      return FieldID::EXCP_COUNT;
+    
+    return FieldID::NONE;
+}
+} // namespace smf30
+
 /* ── Result structures ──────────────────────────────────────────────────── */
 
 struct Smf30Id {
@@ -88,6 +144,32 @@ struct Smf30Record {
     Smf30Perf     perf;
     Smf30Proc     proc;
     Smf30Io       io;
+
+    [[nodiscard]] mf::FieldValue get_field(smf30::FieldID fid) const {
+        using namespace smf30;
+        switch (fid) {
+            case FieldID::SYSTEM_ID:     return mf::FieldValue::from_string(header.system_id);
+            case FieldID::SUBSYSTEM_ID:  return mf::FieldValue::from_string(header.subsystem_id);
+            case FieldID::RECORD_TYPE:   return mf::FieldValue::from_int64(header.record_type);
+            case FieldID::SUBTYPE:       return mf::FieldValue::from_int64(subtype);
+            
+            case FieldID::JOB_NAME:      return mf::FieldValue::from_string(id.job_name);
+            case FieldID::STEP_NAME:     return mf::FieldValue::from_string(id.step_name);
+            case FieldID::JOB_ID:        return mf::FieldValue::from_string(id.job_id);
+            case FieldID::PROGRAM_NAME:  return mf::FieldValue::from_string(id.program_name);
+            
+            case FieldID::ELAPSED_SEC:   return mf::FieldValue::from_double(perf.elapsed_time_hund / 100.0);
+            case FieldID::CPU_SEC:       return mf::FieldValue::from_double(perf.cpu_time_hund / 100.0);
+            
+            case FieldID::TCB_SEC:       return mf::FieldValue::from_double(proc.tcb_time_hund / 100.0);
+            case FieldID::SRB_SEC:       return mf::FieldValue::from_double(proc.srb_time_hund / 100.0);
+            case FieldID::ZIIP_SEC:      return mf::FieldValue::from_double(proc.ziip_time_hund / 100.0);
+            
+            case FieldID::EXCP_COUNT:    return mf::FieldValue::from_int64(io.excp_count);
+            
+            default:                     return mf::FieldValue::null();
+        }
+    }
 };
 
 // SectionPtr, read_section_ptr, make_section_reader — see smf_section.h

@@ -39,6 +39,60 @@
 
 namespace smf {
 
+namespace smf75 {
+enum class FieldID : uint32_t {
+    // Header
+    NONE          = static_cast<uint32_t>(CommonFieldID::NONE),   // sentinel: field not found
+    SYSTEM_ID     = static_cast<uint32_t>(CommonFieldID::SYSTEM_ID),
+    SUBSYSTEM_ID  = static_cast<uint32_t>(CommonFieldID::SUBSYSTEM_ID),
+    RECORD_TYPE   = static_cast<uint32_t>(CommonFieldID::RECORD_TYPE),
+    SUBTYPE       = static_cast<uint32_t>(CommonFieldID::SUBTYPE),
+    SMF_TIMESTAMP = static_cast<uint32_t>(CommonFieldID::SMF_TIMESTAMP),
+    SMF_DATE      = static_cast<uint32_t>(CommonFieldID::SMF_DATE),
+
+    // Product Section
+    INTERVAL_MS   = 100,
+    SAMPLE_COUNT  = 101,
+    SYSPLEX_NAME  = 102,
+
+    // Page Data Set Section
+    DSN           = 200,
+    VOLSER        = 201,
+    PST_FLAGS     = 202,
+    TOTAL_SLOTS   = 203,
+    MAX_USED      = 204,
+    MIN_USED      = 205,
+    AVG_USED      = 206,
+    SIO_COUNT     = 207,
+    PAGES_XFER    = 208,
+};
+
+[[nodiscard]] inline FieldID smf75_lookup_field(std::string_view name) {
+    if (name == "SYSTEM_ID")     return FieldID::SYSTEM_ID;
+    if (name == "SUBSYSTEM_ID")  return FieldID::SUBSYSTEM_ID;
+    if (name == "RECORD_TYPE")   return FieldID::RECORD_TYPE;
+    if (name == "SUBTYPE")       return FieldID::SUBTYPE;
+    if (name == "SMF_TIMESTAMP") return FieldID::SMF_TIMESTAMP;
+    if (name == "SMF_DATE")      return FieldID::SMF_DATE;
+
+    if (name == "SMF75INT")      return FieldID::INTERVAL_MS;
+    if (name == "SMF75SAM")      return FieldID::SAMPLE_COUNT;
+    if (name == "SMF75XNM")      return FieldID::SYSPLEX_NAME;
+
+    if (name == "SMF75DSN")      return FieldID::DSN;
+    if (name == "SMF75VOL")      return FieldID::VOLSER;
+    if (name == "SMF75PST")      return FieldID::PST_FLAGS;
+    if (name == "SMF75SLA")      return FieldID::TOTAL_SLOTS;
+    if (name == "SMF75MXU")      return FieldID::MAX_USED;
+    if (name == "SMF75MNU")      return FieldID::MIN_USED;
+    if (name == "SMF75AVU")      return FieldID::AVG_USED;
+    if (name == "SMF75SIO")      return FieldID::SIO_COUNT;
+    if (name == "SMF75PGX")      return FieldID::PAGES_XFER;
+
+    return FieldID::NONE;
+}
+} // namespace smf75
+
 /* ── Intermediate result structures ────────────────────────────────────── */
 
 struct Smf75Product {
@@ -63,6 +117,22 @@ struct Smf75PageDs {
     uint32_t    avg_used{0};     // SMF75AVU: average slots used
     uint32_t    sio_count{0};    // SMF75SIO: number of SIOs to data set
     uint32_t    pages_xfer{0};   // SMF75PGX: pages transferred to data set
+
+    [[nodiscard]] mf::FieldValue get_field(smf75::FieldID fid) const {
+        using namespace smf75;
+        switch (fid) {
+            case FieldID::DSN:           return mf::FieldValue::from_string(dsn);
+            case FieldID::VOLSER:        return mf::FieldValue::from_string(volume_serial);
+            case FieldID::PST_FLAGS:     return mf::FieldValue::from_int64(pst_flags);
+            case FieldID::TOTAL_SLOTS:   return mf::FieldValue::from_int64(total_slots);
+            case FieldID::MAX_USED:      return mf::FieldValue::from_int64(max_used);
+            case FieldID::MIN_USED:      return mf::FieldValue::from_int64(min_used);
+            case FieldID::AVG_USED:      return mf::FieldValue::from_int64(avg_used);
+            case FieldID::SIO_COUNT:     return mf::FieldValue::from_int64(sio_count);
+            case FieldID::PAGES_XFER:    return mf::FieldValue::from_int64(pages_xfer);
+            default:                     return mf::FieldValue::null();
+        }
+    }
 };
 
 struct Smf75Record {
@@ -70,6 +140,22 @@ struct Smf75Record {
     uint16_t                   subtype{0};
     Smf75Product               product;
     std::vector<Smf75PageDs>   pagesets;
+
+    [[nodiscard]] mf::FieldValue get_field(smf75::FieldID fid) const {
+        using namespace smf75;
+        switch (fid) {
+            case FieldID::SYSTEM_ID:     return mf::FieldValue::from_string(header.system_id);
+            case FieldID::SUBSYSTEM_ID:  return mf::FieldValue::from_string(header.subsystem_id);
+            case FieldID::RECORD_TYPE:   return mf::FieldValue::from_int64(header.record_type);
+            case FieldID::SUBTYPE:       return mf::FieldValue::from_int64(subtype);
+            
+            case FieldID::INTERVAL_MS:   return mf::FieldValue::from_double(product.interval_hund * 10.0);
+            case FieldID::SAMPLE_COUNT:  return mf::FieldValue::from_int64(product.sample_count);
+            case FieldID::SYSPLEX_NAME:  return mf::FieldValue::from_string(product.sysplex_name);
+            
+            default:                     return mf::FieldValue::null();
+        }
+    }
 };
 
 /* ── Section parsers ────────────────────────────────────────────────────── */

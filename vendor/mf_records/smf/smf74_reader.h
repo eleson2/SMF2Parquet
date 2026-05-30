@@ -40,6 +40,62 @@
 
 namespace smf {
 
+namespace smf74 {
+enum class FieldID : uint32_t {
+    // Header
+    NONE          = static_cast<uint32_t>(CommonFieldID::NONE),   // sentinel: field not found
+    SYSTEM_ID     = static_cast<uint32_t>(CommonFieldID::SYSTEM_ID),
+    SUBSYSTEM_ID  = static_cast<uint32_t>(CommonFieldID::SUBSYSTEM_ID),
+    RECORD_TYPE   = static_cast<uint32_t>(CommonFieldID::RECORD_TYPE),
+    SUBTYPE       = static_cast<uint32_t>(CommonFieldID::SUBTYPE),
+    SMF_TIMESTAMP = static_cast<uint32_t>(CommonFieldID::SMF_TIMESTAMP),
+    SMF_DATE      = static_cast<uint32_t>(CommonFieldID::SMF_DATE),
+
+    // Product Section
+    INTERVAL_MS   = 100,
+    SAMPLE_COUNT  = 101,
+    SYSPLEX_NAME  = 102,
+
+    // Device Data Section
+    DEVICE_NUM    = 200,
+    VOLSER        = 201,
+    STORAGE_GROUP = 202,
+    DEVICE_FLAGS  = 203,
+    SSCH_COUNT    = 204,
+    CONNECT_MS    = 205,
+    PENDING_MS    = 206,
+    ACTIVE_MS     = 207,
+    DISCONNECT_MS = 208,
+    QUEUE_DEPTH   = 209,
+};
+
+[[nodiscard]] inline FieldID smf74_lookup_field(std::string_view name) {
+    if (name == "SYSTEM_ID")     return FieldID::SYSTEM_ID;
+    if (name == "SUBSYSTEM_ID")  return FieldID::SUBSYSTEM_ID;
+    if (name == "RECORD_TYPE")   return FieldID::RECORD_TYPE;
+    if (name == "SUBTYPE")       return FieldID::SUBTYPE;
+    if (name == "SMF_TIMESTAMP") return FieldID::SMF_TIMESTAMP;
+    if (name == "SMF_DATE")      return FieldID::SMF_DATE;
+
+    if (name == "SMF74INT")      return FieldID::INTERVAL_MS;
+    if (name == "SMF74SAM")      return FieldID::SAMPLE_COUNT;
+    if (name == "SMF74XNM")      return FieldID::SYSPLEX_NAME;
+
+    if (name == "SMF74NUM")      return FieldID::DEVICE_NUM;
+    if (name == "SMF74SER")      return FieldID::VOLSER;
+    if (name == "SMF74SGN")      return FieldID::STORAGE_GROUP;
+    if (name == "SMF74CNF")      return FieldID::DEVICE_FLAGS;
+    if (name == "SMF74SSC")      return FieldID::SSCH_COUNT;
+    if (name == "SMF74CNN")      return FieldID::CONNECT_MS;
+    if (name == "SMF74PEN")      return FieldID::PENDING_MS;
+    if (name == "SMF74ATV")      return FieldID::ACTIVE_MS;
+    if (name == "SMF74DIS")      return FieldID::DISCONNECT_MS;
+    if (name == "SMF74QUE")      return FieldID::QUEUE_DEPTH;
+
+    return FieldID::NONE;
+}
+} // namespace smf74
+
 /* ── Intermediate result structures ────────────────────────────────────── */
 
 struct Smf74Product {
@@ -65,6 +121,23 @@ struct Smf74Device {
     uint32_t    active_hund{0};   // SMF74ATV: device active time (hundredths)
     uint32_t    disconnect_hund{0}; // SMF74DIS: device disconnect time (hundredths)
     uint32_t    queue_depth{0};   // SMF74QUE: requests queued in IOS
+
+    [[nodiscard]] mf::FieldValue get_field(smf74::FieldID fid) const {
+        using namespace smf74;
+        switch (fid) {
+            case FieldID::DEVICE_NUM:    return mf::FieldValue::from_string(device_num);
+            case FieldID::VOLSER:        return mf::FieldValue::from_string(volume_serial);
+            case FieldID::STORAGE_GROUP: return mf::FieldValue::from_string(storage_group);
+            case FieldID::DEVICE_FLAGS:  return mf::FieldValue::from_int64(device_flags);
+            case FieldID::SSCH_COUNT:    return mf::FieldValue::from_int64(ssch_count);
+            case FieldID::CONNECT_MS:    return mf::FieldValue::from_double(connect_hund    * 10.0);
+            case FieldID::PENDING_MS:    return mf::FieldValue::from_double(pending_hund    * 10.0);
+            case FieldID::ACTIVE_MS:     return mf::FieldValue::from_double(active_hund     * 10.0);
+            case FieldID::DISCONNECT_MS: return mf::FieldValue::from_double(disconnect_hund * 10.0);
+            case FieldID::QUEUE_DEPTH:   return mf::FieldValue::from_int64(queue_depth);
+            default:                     return mf::FieldValue::null();
+        }
+    }
 };
 
 struct Smf74Record {
@@ -72,6 +145,22 @@ struct Smf74Record {
     uint16_t                 subtype{0};
     Smf74Product             product;
     std::vector<Smf74Device> devices;
+
+    [[nodiscard]] mf::FieldValue get_field(smf74::FieldID fid) const {
+        using namespace smf74;
+        switch (fid) {
+            case FieldID::SYSTEM_ID:     return mf::FieldValue::from_string(header.system_id);
+            case FieldID::SUBSYSTEM_ID:  return mf::FieldValue::from_string(header.subsystem_id);
+            case FieldID::RECORD_TYPE:   return mf::FieldValue::from_int64(header.record_type);
+            case FieldID::SUBTYPE:       return mf::FieldValue::from_int64(subtype);
+            
+            case FieldID::INTERVAL_MS:   return mf::FieldValue::from_double(product.interval_hund * 10.0);
+            case FieldID::SAMPLE_COUNT:  return mf::FieldValue::from_int64(product.sample_count);
+            case FieldID::SYSPLEX_NAME:  return mf::FieldValue::from_string(product.sysplex_name);
+            
+            default:                     return mf::FieldValue::null();
+        }
+    }
 };
 
 /* ── Section parsers ────────────────────────────────────────────────────── */

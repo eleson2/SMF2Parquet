@@ -26,6 +26,19 @@
 
 namespace smf {
 
+/* ── Common Field IDs (Header + Metadata) ────────────────────────────────── */
+
+enum class CommonFieldID : uint32_t {
+    NONE = 0,
+    SYSTEM_ID = 1,
+    SUBSYSTEM_ID = 2,
+    RECORD_TYPE = 3,
+    SUBTYPE = 4,
+    SMF_TIMESTAMP = 5,
+    SMF_DATE = 6,
+    // Add more as needed (e.g. flags)
+};
+
 struct SectionPtr {
     uint32_t offset{0};  // byte offset from record start to section data
     uint32_t length{0};  // byte length of each section entry

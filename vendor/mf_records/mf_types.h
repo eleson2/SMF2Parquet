@@ -574,4 +574,46 @@ inline constexpr uint64_t TOD_EPOCH_OFFSET_SEC = 2208988800ULL; /* 1900→1970 *
     return (last == std::string_view::npos) ? std::string_view{} : s.substr(0, last + 1);
 }
 
+/*════════════════════════════════════════════════════════════════
+  Metadata-Driven Field Access
+════════════════════════════════════════════════════════════════*/
+
+enum class FieldType {
+    String,
+    Int64,
+    Double,
+    Timestamp,
+    Date
+};
+
+struct FieldValue {
+    FieldType type;
+    union {
+        const char* s_val; // For String, points to string inside record (must outlive FieldValue)
+        int64_t     i_val; // For Int64, Timestamp, Date (epoch values)
+        double      d_val; // For Double
+    } v;
+    size_t s_len{0};
+
+    static FieldValue from_string(const std::string& s) {
+        FieldValue f; f.type = FieldType::String; f.v.s_val = s.c_str(); f.s_len = s.length(); return f;
+    }
+    static FieldValue from_int64(int64_t i) {
+        FieldValue f; f.type = FieldType::Int64; f.v.i_val = i; return f;
+    }
+    static FieldValue from_double(double d) {
+        FieldValue f; f.type = FieldType::Double; f.v.d_val = d; return f;
+    }
+    static FieldValue from_timestamp(int64_t us) {
+        FieldValue f; f.type = FieldType::Timestamp; f.v.i_val = us; return f;
+    }
+    static FieldValue from_date(int32_t days) {
+        FieldValue f; f.type = FieldType::Date; f.v.i_val = days; return f;
+    }
+    static FieldValue null() {
+        FieldValue f; f.type = FieldType::String; f.v.s_val = nullptr; f.s_len = 0; return f;
+    }
+    bool is_null() const { return type == FieldType::String && v.s_val == nullptr; }
+};
+
 } // namespace mf
