@@ -978,7 +978,7 @@ std::vector<uint8_t> make_rmf_record(uint8_t type, uint16_t subtype, int year, i
     std::vector<uint8_t> body;
     put_header(body, type, year, ddd, time_hs, sys_id);
     put_u16_be(body, subtype);
-    put_u32_be(body, static_cast<uint32_t>(n_entries));   // SMF*TRN
+    put_u32_be(body, static_cast<uint32_t>(n_triplets));   // SMF*TRN: number of TRIPLETS
     const uint32_t data_off = 26u + static_cast<uint32_t>(n_triplets) * 12u;
     for (int i = 0; i < n_triplets; ++i) {
         if (i == n_triplets - 1) {
@@ -1191,8 +1191,8 @@ int main(int argc, char* argv[]) {
             // Page data sets: 10 entries
             emit(make_rmf_record(75, 1, Y, DAY, t, 2, 80, 10, sys)); 
 
-            // Device activity: 1000 devices
-            emit(make_rmf_record(74, 1, Y, DAY, t, 3, 72, 1000, sys));
+            // Device activity: 400 devices (fits in 32KB)
+            emit(make_rmf_record(74, 1, Y, DAY, t, 3, 72, 400, sys));
 
             // Batch jobs (Subtype 4: Termination) - ~5 per interval
             const char* jobs[] = {"PAYROLL", "BILLING", "BACKUP", "PURGE", "REPORT"};
