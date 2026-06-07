@@ -1,0 +1,40 @@
+rows=1 cols=9
+schema:
+smf_timestamp: timestamp[us, tz=UTC]
+smf_date: date32[day]
+system_id: string
+subsystem_id: string
+record_type: uint8
+subtype: uint16
+flags: uint8
+source_file: string
+ingest_ts: timestamp[us, tz=UTC]
+data:
+smf_timestamp:   [
+    2025-04-11 01:00:00.000000Z
+  ]
+smf_date:   [
+    2025-04-11
+  ]
+system_id:   [
+    "SYS2"
+  ]
+subsystem_id:   [
+    "JES2"
+  ]
+record_type:   [
+    72
+  ]
+subtype:   [
+    1
+  ]
+flags:   [
+    0
+  ]
+source_file:   [
+    "test.smf"
+  ]
+ingest_ts:   [
+    MASKED_TIMESTAMP
+  ]
+

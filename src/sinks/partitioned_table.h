@@ -109,6 +109,17 @@ private:
         p.pending = 0;
     }
 
+    static std::string sanitize(std::string_view s) {
+        if (s.empty()) return "UNKNOWN";
+        std::string res;
+        res.reserve(s.size());
+        for (unsigned char c : s) {
+            if (std::isalnum(c)) res.push_back(static_cast<char>(c));
+            else res.push_back('_');
+        }
+        return res;
+    }
+
     std::string make_path(const PartitionKey& key) {
         int y; unsigned m, d;
         std::string date_str;
@@ -129,14 +140,20 @@ private:
             month_dir = buf;
         }
 
+        const std::string sys = sanitize(key.system_id);
+        const std::string cust = sanitize(customer_);
+
         const std::filesystem::path dir = std::filesystem::path(out_root_)
-                                        / customer_
-                                        / key.system_id
+                                        / cust
+                                        / sys
                                         / year_dir
                                         / month_dir;
         
         std::error_code ec;
         std::filesystem::create_directories(dir, ec);
+        if (ec) {
+             throw std::runtime_error("mkdir " + dir.string() + ": " + ec.message());
+        }
         
         // Filename: TYPE-YYYYMMDD-RUNID.parquet (using uppercase for type)
         std::string type_upper = table_;

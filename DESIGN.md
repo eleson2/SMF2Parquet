@@ -176,10 +176,14 @@ confirmed before implementation starts.
 
 ## 7. Output design (DuckDB / Iceberg)
 
-### 7.1 One table per record type
-Each SMF type is its own logical table (`smf30`, `smf70`, …, plus `smf_raw` for
-unparsed types). This matches the intent, keeps per-type schemas tight, and maps 1:1 onto
-Iceberg tables.
+### 7.1 One table per record type/subtype
+Each SMF type/subtype combination is its own logical table (`smf30`, `smf70-1`, `smf70-2`, …, plus `smf_raw` for unparsed types). 
+
+- **Unified types:** Types like SMF 30, where subtypes represent different lifecycle events of the same entity (Job), are typically kept in a single `smf30` table with a `subtype` column.
+- **RMF/Split types:** For RMF (70-79) and other types where subtypes represent entirely different datasets (CPU vs. Device vs. Storage), we use the `smfNN-S` naming convention (e.g., `smf70-1`, `smf72-1`).
+- **Lossless coverage:** Any record without a specific subtype sink falls back to `raw`.
+
+This keeps per-type schemas tight and maps 1:1 onto Iceberg tables.
 
 ### 7.2 Partition layout (Hive-style)
 ```

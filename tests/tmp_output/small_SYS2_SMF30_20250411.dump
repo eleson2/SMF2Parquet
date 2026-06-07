@@ -61,9 +61,9 @@ source_file:   [
     "test.smf"
   ]
 ingest_ts:   [
-    2026-05-29 14:55:58.289885Z,
-    2026-05-29 14:55:58.289885Z,
-    2026-05-29 14:55:58.289885Z
+    MASKED_TIMESTAMP,
+    MASKED_TIMESTAMP,
+    MASKED_TIMESTAMP
   ]
 job_name:   [
     "",

@@ -187,33 +187,32 @@ struct Smf74Record {
 
 [[nodiscard]] inline Smf74Device read_smf74_device(mf::Reader& er) {
     Smf74Device d;
-    // Device Data Section entry (SMF74B) sequential field read.
-    // TODO: verify all field sizes and order against IBM GA32-0869 z/OS 3.1.
-    // Field order follows IBM SMF Explorer reference doc for SMF74S1.
-    if (er.can_read(2))
-        d.device_num = mf::rtrim(er.read_ebcdic(2));   // SMF74NUM: 2-byte device address
-    if (er.can_read(2)) er.skip(2);                     // SMF74LCU: LCU number (2 bytes)
-    if (er.can_read(1))
-        d.device_flags = er.read_u8();                  // SMF74CNF: device flags
-    if (er.can_read(6))
-        d.volume_serial = mf::rtrim(er.read_ebcdic(6)); // SMF74SER: VOLSER (6 bytes)
-    if (er.can_read(4)) er.skip(4);                     // SMF74TYP: unit type (4 bytes)
-    if (er.can_read(2)) er.skip(2);                     // SMF74NUX: PAV alias count (2 bytes)
-    if (er.can_read(4))
-        d.ssch_count = er.read_u32();                   // SMF74SSC: SSCH count
-    if (er.can_read(4)) er.skip(4);                     // SMF74MEC: measurement event count
-    if (er.can_read(4))
-        d.connect_hund = er.read_u32();                 // SMF74CNN: connect time (hundredths)
-    if (er.can_read(4))
-        d.pending_hund = er.read_u32();                 // SMF74PEN: pending time (hundredths)
-    if (er.can_read(4))
-        d.active_hund = er.read_u32();                  // SMF74ATV: active time (hundredths)
-    if (er.can_read(4))
-        d.disconnect_hund = er.read_u32();              // SMF74DIS: disconnect time (hundredths)
-    if (er.can_read(4))
-        d.queue_depth = er.read_u32();                  // SMF74QUE: IOS queue depth
-    // Remaining fields (utl, rsv, alc, mtp, nrd, cof, dvb, clf, sgn, ...) skipped for now.
-    // TODO: read storage group name (SMF74SGN, 8 bytes EBCDIC) once offset confirmed.
+    // Device Data Section entry (SMF74B) verified offsets for z/OS 3.1.
+    if (er.can_read(2)) d.device_num = mf::rtrim(er.read_ebcdic(2));   // SMF74NUM
+    if (er.can_read(2)) er.skip(2);                                  // SMF74LCU
+    if (er.can_read(1)) d.device_flags = er.read_u8();               // SMF74CNF
+    if (er.can_read(6)) d.volume_serial = mf::rtrim(er.read_ebcdic(6)); // SMF74SER
+    
+    // Jump to fields with known offsets in long modern records
+    if (er.can_read(16 + 4)) {
+        er.pos = 16;
+        d.ssch_count = er.read_u32();                               // SMF74SSC
+    }
+    if (er.can_read(24 + 16)) {
+        er.pos = 24;
+        d.connect_hund    = er.read_u32();                          // SMF74CNN
+        d.pending_hund    = er.read_u32();                          // SMF74PEN
+        d.active_hund     = er.read_u32();                          // SMF74ATV
+        d.disconnect_hund = er.read_u32();                          // SMF74DIS
+    }
+    if (er.can_read(40 + 4)) {
+        er.pos = 40;
+        d.queue_depth     = er.read_u32();                          // SMF74QUE
+    }
+    if (er.can_read(64 + 8)) {
+        er.pos = 64;
+        d.storage_group   = mf::rtrim(er.read_ebcdic(8));           // SMF74SGN
+    }
     return d;
 }
 

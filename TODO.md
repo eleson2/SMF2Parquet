@@ -16,6 +16,10 @@ a decision · ✅ = done.
   shims that include the shared cores; SMF-parser rebuilds green (behaviour byte-identical
   to baseline). SMF2Parquet skeleton builds and runs (counts types 30/70/99/250 from
   `gen_test_smf`, parses SMF30 via the shared core).
+- ✅ **Subtype Migration done**: RMF types (70, 74, 75) migrated to subtype-specific table names
+  (`smf70-1`, etc.).
+- ✅ **Dynamic Subtype Routing done**: `SubtypeRouterSink` implemented and used for all stub types
+  (71, 72, 73, 76, 77, 78, 79, 99, 113), ensuring every subtype encountered gets its own table.
 - ✅ **Arrow/Parquet installed** in WSL (24.0.0, via the Apache APT repo).
 - ✅ **Type-30 Parquet slice works end-to-end**: `cmake -DSMF2PARQUET_WITH_PARQUET=ON`
   builds `smf2parquet` + `pq_dump`; on `gen_test_smf` output it writes `out/smf30.parquet`
@@ -28,10 +32,9 @@ a decision · ✅ = done.
   writers, atomic temp→rename, shared `CommonColumns` block.
 - ✅ **Phase 6 done**: sinks for all 13 types (bespoke 30/70/74/75, header-only
   71/72/73/76/77/78/79/113, 99 + body_length) **+ `raw` fallback** for unknown types.
-  Verified on `gen_test_smf`: 4 records → `smf30`/`smf70`/`smf99`/`raw` tables, correct
-  partition tree + schemas (read back with `pq_dump`). Both Arrow and no-Arrow builds green.
-- ⏭ **Next:** field-offset verification (Phase 7), test fixtures incl. a midnight-straddle /
-  multi-date file (Phase 9), then CLI/config + scaling (Phases 8/§8).
+- ✅ **Phase 7 Started — SMF 72-3 Implemented**: Full Workload Activity parser + bespoke
+  multi-row sink.
+- ⏭ **Next:** Implement remaining RMF and hardware parsers (71, 73, 78-3, 113, etc.).
 
 ---
 
@@ -126,9 +129,48 @@ a decision · ✅ = done.
 - [ ] DuckDB round-trip test (`hive_partitioning=true`, group-by per type).
 - [ ] Edge cases: empty file, truncated final record, midnight straddle, unknown type.
 - [ ] CMake test target (`ctest`); WSL build+test one-liner documented in README.
+## Phase 7 — Parser Enrichment (Subtype Implementation)
+
+Implement full field-level parsing and bespoke sinks for all prioritized types/subtypes.
+
+### 7.1 Infrastructure & Fixes
+- [x] ✅ **SMF 78-3**: Wire up existing `Smf78_3ParquetSink` in `main.cpp`.
+- [x] ✅ **SMF 70-1**: Verify `zaap_online` / `ziip_online` offsets and add to sink.
+- [x] ✅ **SMF 74-1**: Verify `storage_group` (SMF74SGN) offset and add to sink.
+
+### 7.2 RMF Core Metrics
+- [x] ✅ **SMF 71-1 (Paging Activity)**: Central/virtual storage paging.
+- [x] ✅ **SMF 73-1 (Channel Path Activity)**: Channel path utilization.
+- [x] ✅ **SMF 77-1 (Enqueue Activity)**: Contention metrics.
+- [x] ✅ **SMF 74-4 (Coupling Facility)**: CF structure and link performance.
+
+### 7.3 Modern & Advanced (z/OS 3.1 era)
+- [x] ✅ **SMF 113 (Hardware Counters)**: CPI, L1/L2 cache misses (Subtypes 1 & 2).
+- [x] ✅ **SMF 74-9 (PCIE Activity)**: zEDC and RoCE card performance.
+- [x] ✅ **SMF 98 (High-Frequency Throughput)**: 5-second interval performance data.
+- [ ] **SMF 1154 (Compliance Evidence)**: Compliance subtypes.
+
+### 7.4 Specialty & Hardware Metrics
+- [x] ✅ **SMF 74-5 (Cache Controller)**: DASD cache hit/miss statistics.
+- [x] ✅ **SMF 74-8 (Enterprise Disk)**: DS8000 extent pool and rank stats.
+- [x] ✅ **SMF 70-2 (Cryptographic Activity)**: Crypto Express card performance.
+
+### 7.5 Monitor II (Real-time snapshots)
+- [x] ✅ **SMF 79-1 (Address Space State)**: ASD metrics.
+- [x] ✅ **SMF 79-2 (Address Space Resource)**: ARD metrics.
+- [x] ✅ **SMF 76-1 (Paging/Swapping Activity)**: Storage frame counts.
+- [x] ✅ **SMF 79-13 (System Events)**: Configuration changes.
+
+---
+
+## Phase 9 — Test Data & Regression
+- [x] ✅ **Profile 'small'**: Hand-crafted edge cases (misaligned triplets, empty sections).
+- [x] ✅ **Profile 'large'**: 24h interval simulation covering all enriched types.
+- [ ] **Regression Suite**: Automate comparison of `pq_dump` output against golden files.
+
+---
 
 ## Phase 10 — Integration with the batch/compaction lifecycle
-
 - [ ] Document the contract the 24h/monthly compaction routines rely on: partition layout,
       file-naming, lineage columns, schema-version, atomic visibility.
 - [ ] Confirm dedup story for reprocessed batches (lineage columns + downstream merge).

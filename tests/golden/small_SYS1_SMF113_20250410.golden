@@ -1,4 +1,4 @@
-rows=1 cols=9
+rows=1 cols=15
 schema:
 smf_timestamp: timestamp[us, tz=UTC]
 smf_date: date32[day]
@@ -9,6 +9,12 @@ subtype: uint16
 flags: uint8
 source_file: string
 ingest_ts: timestamp[us, tz=UTC]
+cpu_id: uint16
+cpu_class: uint8
+cycles: uint64
+instructions: uint64
+l1_miss_dir: uint64
+l1_miss_pen: uint64
 data:
 smf_timestamp:   [
     2025-04-10 01:00:00.000000Z
@@ -35,6 +41,24 @@ source_file:   [
     "test.smf"
   ]
 ingest_ts:   [
-    2026-05-29 14:55:58.289885Z
+    MASKED_TIMESTAMP
+  ]
+cpu_id:   [
+    0
+  ]
+cpu_class:   [
+    0
+  ]
+cycles:   [
+    null
+  ]
+instructions:   [
+    null
+  ]
+l1_miss_dir:   [
+    null
+  ]
+l1_miss_pen:   [
+    null
   ]
 

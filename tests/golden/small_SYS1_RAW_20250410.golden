@@ -36,7 +36,7 @@ source_file:   [
     "test.smf"
   ]
 ingest_ts:   [
-    2026-05-29 14:55:58.289885Z
+    MASKED_TIMESTAMP
   ]
 body:   [
     001400FA00057E402025100CE2E8E2F1D1C5E2F2

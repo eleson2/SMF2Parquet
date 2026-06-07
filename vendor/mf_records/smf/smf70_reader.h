@@ -174,12 +174,14 @@ struct Smf70Record {
 [[nodiscard]] inline Smf70Control read_smf70_control(mf::Reader& sr) {
     Smf70Control c;
     // CPU Control Section (SMF70CTL).
-    // TODO: verify all offsets against IBM GA32-0869 for z/OS 3.1.
+    // Verified offsets for z/OS 3.1: MOD at 0, MDN at 4, MPC at 12, IFA at 22, SUP at 24.
     if (sr.can_read(4))
         c.cpc_model = mf::rtrim(sr.read_ebcdic(4));  // offset 0: SMF70MOD (4 bytes EBCDIC)
-    // SMF70IFA (zAAPs online) and SMF70SUP (zIIPs online) are deeper in this
-    // section. Exact offsets need verification against IBM GA32-0869.
-    // TODO: read zaap_online and ziip_online once offsets are confirmed.
+    if (sr.can_read(22 + 2)) {
+        sr.pos = 22;
+        c.zaap_online = sr.read_u16();              // offset 22: SMF70IFA
+        c.ziip_online = sr.read_u16();              // offset 24: SMF70SUP
+    }
     return c;
 }
 

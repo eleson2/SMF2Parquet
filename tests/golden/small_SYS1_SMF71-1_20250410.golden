@@ -1,0 +1,76 @@
+rows=1 cols=18
+schema:
+smf_timestamp: timestamp[us, tz=UTC]
+smf_date: date32[day]
+system_id: string
+subsystem_id: string
+record_type: uint8
+subtype: uint16
+flags: uint8
+source_file: string
+ingest_ts: timestamp[us, tz=UTC]
+interval_start_ts: timestamp[us, tz=UTC]
+interval_ms: uint32
+sysplex_name: string
+total_page_ins: uint32
+total_page_outs: uint32
+avg_avail_frames: uint32
+max_avail_frames: uint32
+min_avail_frames: uint32
+fixed_frames: uint32
+data:
+smf_timestamp:   [
+    2025-04-10 01:00:00.000000Z
+  ]
+smf_date:   [
+    2025-04-10
+  ]
+system_id:   [
+    "SYS1"
+  ]
+subsystem_id:   [
+    "JES2"
+  ]
+record_type:   [
+    71
+  ]
+subtype:   [
+    1
+  ]
+flags:   [
+    0
+  ]
+source_file:   [
+    "test.smf"
+  ]
+ingest_ts:   [
+    MASKED_TIMESTAMP
+  ]
+interval_start_ts:   [
+    null
+  ]
+interval_ms:   [
+    0
+  ]
+sysplex_name:   [
+    ""
+  ]
+total_page_ins:   [
+    0
+  ]
+total_page_outs:   [
+    0
+  ]
+avg_avail_frames:   [
+    0
+  ]
+max_avail_frames:   [
+    0
+  ]
+min_avail_frames:   [
+    0
+  ]
+fixed_frames:   [
+    0
+  ]
+

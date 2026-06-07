@@ -28,9 +28,9 @@
 namespace mf {
 
 struct SmfHeader {
-    uint16_t    record_len;      /* total record length in bytes             */
+    uint32_t    record_len;      /* total record length in bytes             */
     uint8_t     flags;           /* SMFRECFL flag byte                       */
-    uint8_t     record_type;     /* SMF record type                          */
+    uint16_t    record_type;     /* SMF record type (can be > 255)           */
     MfTime      time;            /* creation time                            */
     MfDate      date;            /* creation date                            */
     std::string system_id;       /* SMFSID,  4 chars, decoded from EBCDIC    */
@@ -38,18 +38,40 @@ struct SmfHeader {
 };
 
 /*
- * Parse the standard SMF header.  Cursor is left at byte 20 on return.
- * Read the subtype (if applicable) with r.read_u16() immediately after.
+ * Parse the standard SMF header.
+ *
+ * If the record length (first 2 bytes) is X'FFFF', it's an extended header
+ * where the type is 2 bytes at offset 2, and the length is 4 bytes at offset 4.
+ * Otherwise, it's a standard header (type at offset 5, length 2 bytes at offset 0).
+ *
+ * Cursor is left at the start of the subtype word (if any) on return.
  */
 [[nodiscard]] constexpr SmfHeader read_smf_header(Reader& r) {
     SmfHeader h;
-    h.record_len   = r.read_u16();
-    h.flags        = r.read_u8();
-    h.record_type  = r.read_u8();
-    h.time         = r.read_mf_time();
-    h.date         = r.read_mf_date();
-    h.system_id    = r.read_ebcdic_trimmed(4);
-    h.subsystem_id = r.read_ebcdic_trimmed(4);
+    const uint16_t raw_len = r.read_u16(); // offset 0
+    
+    if (raw_len == 0xFFFFu) {
+        // Extended Header (z/OS 2.1+)
+        h.record_type  = r.read_u16();     // offset 2
+        h.record_len   = r.read_u32();     // offset 4
+        h.flags        = r.read_u8();      // offset 8
+        r.skip(1);                         // Reserved
+        h.time         = r.read_mf_time(); // offset 10
+        h.date         = r.read_mf_date(); // offset 14
+        h.system_id    = r.read_ebcdic_trimmed(4); // offset 18
+        h.subsystem_id = r.read_ebcdic_trimmed(4); // offset 22
+        r.pos = 32; // Extended header is 32 bytes
+    } else {
+        // Standard Header
+        h.record_len   = raw_len;
+        h.flags        = r.read_u8();      // offset 2
+        h.record_type  = r.read_u8();      // offset 3
+        h.time         = r.read_mf_time(); // offset 4
+        h.date         = r.read_mf_date(); // offset 8
+        h.system_id    = r.read_ebcdic_trimmed(4); // offset 12
+        h.subsystem_id = r.read_ebcdic_trimmed(4); // offset 16
+        r.pos = 20; // Standard header is 20 bytes
+    }
     return h;
 }
 

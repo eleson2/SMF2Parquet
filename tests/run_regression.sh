@@ -36,10 +36,18 @@ for profile in small edge; do
     # Find every system/year/month and then the parquet files
     # The files are now TYPE-YYYYMMDD-RUNID.parquet
     find "$cust_dir" -name "*.parquet" | while read -r pq_file; do
-        # Extract type and date from filename (e.g., SMF30-20250410-...)
+        # Filename format: TYPE-YYYYMMDD-RUNID.parquet
+        # TYPE can contain hyphens if it's a subtype (e.g., SMF70-1)
+        # RUNID is YYYYMMDDThhmmssZ-PID
         filename=$(basename "$pq_file")
-        type_name=$(echo "$filename" | cut -d- -f1)
-        date_val=$(echo "$filename" | cut -d- -f2)
+        
+        # The date is always the second to last component if we split by hyphen,
+        # but wait, RUNID also has a hyphen.
+        # Let's use regex to find the 8-digit date.
+        date_val=$(echo "$filename" | grep -oE '[0-9]{8}' | head -n 1)
+        # Type name is everything before the date
+        type_name=$(echo "$filename" | sed -E "s/-${date_val}-.*//")
+        
         # system_id is the parent of year=...
         system_id=$(basename "$(dirname "$(dirname "$(dirname "$pq_file")")")")
         
@@ -47,9 +55,10 @@ for profile in small edge; do
         
         # Dump content, mask volatile columns
         # Filenames are now MASKED_RUN_ID suffix
+        # ingest_ts is volatile (current time)
         ./build/pq_dump "$pq_file" \
             | sed -E 's/[0-9]{8}T[0-9]{6}Z-[0-9]+/MASKED_RUN_ID/g' \
-            | sed -E 's/smf_ingest_time: [0-9]+/smf_ingest_time: MASKED_TIME/g' \
+            | sed -E 's/202[6-9]-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z/MASKED_TIMESTAMP/g' \
             | sed -E "s/tests\/data\/$profile\/test\.smf/test.smf/g" \
             > "tests/tmp_output/${profile}_${system_id}_${type_name}_${date_val}.dump"
 
