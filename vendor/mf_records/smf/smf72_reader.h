@@ -224,13 +224,15 @@ struct Smf72Record {
     if (make_section_reader(rec_bytes, ctrl_ptr, 24, sr))
         out.control = read_smf72_control(sr);
 
-    if (peri_ptr.count > 0 && peri_ptr.length >= 68) {
-        out.periods.reserve(peri_ptr.count);
-        for (uint32_t i = 0; i < peri_ptr.count; ++i) {
-            const std::size_t off = peri_ptr.offset + static_cast<std::size_t>(i) * peri_ptr.length;
-            if (off + peri_ptr.length > rec_bytes.size()) break;
-            mf::Reader er{ rec_bytes.subspan(off, peri_ptr.length) };
-            out.periods.push_back(read_smf72_period(er));
+    if (peri_ptr.length >= 68) {
+        const uint32_t actual_count = peri_ptr.safe_count(rec_bytes.size());
+        if (actual_count > 0) {
+            out.periods.reserve(actual_count);
+            for (uint32_t i = 0; i < actual_count; ++i) {
+                const std::size_t off = peri_ptr.offset + static_cast<std::size_t>(i) * peri_ptr.length;
+                mf::Reader er{ rec_bytes.subspan(off, peri_ptr.length) };
+                out.periods.push_back(read_smf72_period(er));
+            }
         }
     }
 

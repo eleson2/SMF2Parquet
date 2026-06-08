@@ -134,13 +134,15 @@ struct Smf77Record {
     if (make_section_reader(rec_bytes, prod_ptr, 24, sr))
         out.product = read_smf77_product(sr);
 
-    if (enq_ptr.count > 0 && enq_ptr.length >= 60) {
-        out.enqueues.reserve(enq_ptr.count);
-        for (uint32_t i = 0; i < enq_ptr.count; ++i) {
-            const std::size_t off = enq_ptr.offset + static_cast<std::size_t>(i) * enq_ptr.length;
-            if (off + enq_ptr.length > rec_bytes.size()) break;
-            mf::Reader er{ rec_bytes.subspan(off, enq_ptr.length) };
-            out.enqueues.push_back(read_smf77_enqueue(er));
+    if (enq_ptr.length >= 60) {
+        const uint32_t actual_count = enq_ptr.safe_count(rec_bytes.size());
+        if (actual_count > 0) {
+            out.enqueues.reserve(actual_count);
+            for (uint32_t i = 0; i < actual_count; ++i) {
+                const std::size_t off = enq_ptr.offset + static_cast<std::size_t>(i) * enq_ptr.length;
+                mf::Reader er{ rec_bytes.subspan(off, enq_ptr.length) };
+                out.enqueues.push_back(read_smf77_enqueue(er));
+            }
         }
     }
 

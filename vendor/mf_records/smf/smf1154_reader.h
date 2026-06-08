@@ -71,11 +71,13 @@ struct Smf1154Record {
     out.header = mf::read_smf_header(r);
     if (r.can_read(2)) out.subtype = r.read_u16();
 
-    // SMF 1154 uses standard triplets starting at offset 24 (just like 70/74)
-    r.pos = 24;
-    uint16_t num_triplets = r.can_read(2) ? r.read_u16() : 0;
-    r.pos = 28; // triplets start at 28
-
+    // SMF 1154 is an Extended Header record (32 bytes).
+    // Offset 22: Subtype (2 bytes) -- read above
+    // Offset 24: SMF_TRN (4 bytes)
+    // Offset 28: SMF_SSI (4 bytes)
+    // Offset 32: Triplets start
+    
+    r.pos = 32;
     // [0] Common Header
     // [1] Subtype Specific Section (Self-Defining)
     const SectionPtr comm_ptr = read_section_ptr(r);
@@ -89,18 +91,20 @@ struct Smf1154Record {
         // For Subtype 1, the specific section contains its own triplets
         mf::Reader spec_r{ rec_bytes.subspan(spec_ptr.offset, spec_ptr.length) };
         if (spec_r.can_read(4)) {
-            uint32_t spec_trn = spec_r.read_u32();
+            uint32_t spec_trn = spec_r.read_u32(); // Offset 0 of spec section is its TRN
             if (spec_trn > 0) {
-                // Triplets in spec section are also 12 bytes
+                // Triplets in spec section follow the 4-byte TRN
                 const SectionPtr tcp_ptr = read_section_ptr(spec_r);
                 
-                if (tcp_ptr.count > 0 && tcp_ptr.length >= 16) {
-                    out.tcp_stacks.reserve(tcp_ptr.count);
-                    for (uint32_t i = 0; i < tcp_ptr.count; ++i) {
-                        const std::size_t off = tcp_ptr.offset + static_cast<std::size_t>(i) * tcp_ptr.length;
-                        if (off + tcp_ptr.length > rec_bytes.size()) break;
-                        mf::Reader er{ rec_bytes.subspan(off, tcp_ptr.length) };
-                        out.tcp_stacks.push_back(read_smf1154_1_tcp(er));
+                if (tcp_ptr.length >= 16) {
+                    const uint32_t actual_count = tcp_ptr.safe_count(rec_bytes.size());
+                    if (actual_count > 0) {
+                        out.tcp_stacks.reserve(actual_count);
+                        for (uint32_t i = 0; i < actual_count; ++i) {
+                            const std::size_t off = tcp_ptr.offset + static_cast<std::size_t>(i) * tcp_ptr.length;
+                            mf::Reader er{ rec_bytes.subspan(off, tcp_ptr.length) };
+                            out.tcp_stacks.push_back(read_smf1154_1_tcp(er));
+                        }
                     }
                 }
             }

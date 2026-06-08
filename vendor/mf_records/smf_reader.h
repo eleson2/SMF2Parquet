@@ -55,22 +55,24 @@ struct SmfHeader {
         h.record_type  = r.read_u16();     // offset 2
         h.record_len   = r.read_u32();     // offset 4
         h.flags        = r.read_u8();      // offset 8
-        r.skip(1);                         // Reserved
-        h.time         = r.read_mf_time(); // offset 10
-        h.date         = r.read_mf_date(); // offset 14
-        h.system_id    = r.read_ebcdic_trimmed(4); // offset 18
-        h.subsystem_id = r.read_ebcdic_trimmed(4); // offset 22
-        r.pos = 32; // Extended header is 32 bytes
+        r.skip(1);                         // Reserved (9)
+        h.time         = r.read_mf_time(); // offset 10-13
+        h.date         = r.read_mf_date(); // offset 14-17
+        h.system_id    = r.read_ebcdic_trimmed(4); // offset 18-21
+        // Offset 22-23 is Subtype, 24-27 is TRN, 28-31 is Subsystem ID
+        r.pos = 28;
+        h.subsystem_id = r.read_ebcdic_trimmed(4); // offset 28-31
+        r.pos = 22; // Leave cursor at the subtype word for the parser
     } else {
         // Standard Header
         h.record_len   = raw_len;
         h.flags        = r.read_u8();      // offset 2
         h.record_type  = r.read_u8();      // offset 3
-        h.time         = r.read_mf_time(); // offset 4
-        h.date         = r.read_mf_date(); // offset 8
-        h.system_id    = r.read_ebcdic_trimmed(4); // offset 12
-        h.subsystem_id = r.read_ebcdic_trimmed(4); // offset 16
-        r.pos = 20; // Standard header is 20 bytes
+        h.time         = r.read_mf_time(); // offset 4-7
+        h.date         = r.read_mf_date(); // offset 8-11
+        h.system_id    = r.read_ebcdic_trimmed(4); // offset 12-15
+        h.subsystem_id = r.read_ebcdic_trimmed(4); // offset 16-19
+        r.pos = 20; // Standard header: subtype (if any) starts at 20
     }
     return h;
 }

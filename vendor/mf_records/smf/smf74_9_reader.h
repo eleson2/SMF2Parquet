@@ -115,13 +115,15 @@ struct Smf74_9Record {
     if (make_section_reader(rec_bytes, prod_ptr, 24, sr))
         out.product = read_smf74_9_product(sr);
 
-    if (func_ptr.count > 0 && func_ptr.length >= 120) {
-        out.functions.reserve(func_ptr.count);
-        for (uint32_t i = 0; i < func_ptr.count; ++i) {
-            const std::size_t off = func_ptr.offset + static_cast<std::size_t>(i) * func_ptr.length;
-            if (off + func_ptr.length > rec_bytes.size()) break;
-            mf::Reader er{ rec_bytes.subspan(off, func_ptr.length) };
-            out.functions.push_back(read_smf74_9_func(er));
+    if (func_ptr.length >= 120) {
+        const uint32_t actual_count = func_ptr.safe_count(rec_bytes.size());
+        if (actual_count > 0) {
+            out.functions.reserve(actual_count);
+            for (uint32_t i = 0; i < actual_count; ++i) {
+                const std::size_t off = func_ptr.offset + static_cast<std::size_t>(i) * func_ptr.length;
+                mf::Reader er{ rec_bytes.subspan(off, func_ptr.length) };
+                out.functions.push_back(read_smf74_9_func(er));
+            }
         }
     }
 

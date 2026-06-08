@@ -241,12 +241,8 @@ struct Smf74Record {
         out.product = read_smf74_product(sr);
 
     // Device data section — one entry per DASD device; each becomes one row.
-    if (dev_ptr.count > 0 && dev_ptr.length >= 29) {
-        const std::size_t max_possible = (rec_bytes.size() > dev_ptr.offset)
-            ? (rec_bytes.size() - dev_ptr.offset) / dev_ptr.length
-            : 0;
-        const uint32_t actual_count = std::min(dev_ptr.count, static_cast<uint32_t>(max_possible));
-
+    if (dev_ptr.length >= 29) {
+        const uint32_t actual_count = dev_ptr.safe_count(rec_bytes.size());
         if (actual_count > 0) {
             out.devices.reserve(actual_count);
             for (uint32_t i = 0; i < actual_count; ++i) {

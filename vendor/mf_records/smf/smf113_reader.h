@@ -118,12 +118,15 @@ struct Smf113Record {
     }
 
     // Data Section contains the repeating 8-byte counters
-    if (data_ptr.count > 0 && data_ptr.length >= 8) {
-        out.counters.reserve(data_ptr.count);
-        sr.pos = data_ptr.offset;
-        for (uint32_t i = 0; i < data_ptr.count; ++i) {
-            if (sr.can_read(8)) out.counters.push_back(sr.read_u64());
-            else break;
+    if (data_ptr.length >= 8) {
+        const uint32_t actual_count = data_ptr.safe_count(rec_bytes.size());
+        if (actual_count > 0) {
+            out.counters.reserve(actual_count);
+            sr.pos = data_ptr.offset;
+            for (uint32_t i = 0; i < actual_count; ++i) {
+                if (sr.can_read(8)) out.counters.push_back(sr.read_u64());
+                else break;
+            }
         }
     }
 

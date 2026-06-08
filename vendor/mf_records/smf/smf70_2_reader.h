@@ -99,17 +99,20 @@ struct Smf70_2Record {
     if (make_section_reader(rec_bytes, prod_ptr, 24, sr))
         out.product = read_smf70_2_product(sr);
 
-    if (card_ptr.count > 0 && card_ptr.length >= 32) {
-        out.cards.reserve(card_ptr.count);
-        for (uint32_t i = 0; i < card_ptr.count; ++i) {
-            const std::size_t off = card_ptr.offset + static_cast<std::size_t>(i) * card_ptr.length;
-            if (off + card_ptr.length > rec_bytes.size()) break;
-            mf::Reader er{ rec_bytes.subspan(off, card_ptr.length) };
-            out.cards.push_back(read_smf70_2_card(er));
+    if (card_ptr.length >= 100) {
+        const uint32_t actual_count = card_ptr.safe_count(rec_bytes.size());
+        if (actual_count > 0) {
+            out.cards.reserve(actual_count);
+            for (uint32_t i = 0; i < actual_count; ++i) {
+                const std::size_t off = card_ptr.offset + static_cast<std::size_t>(i) * card_ptr.length;
+                if (off + card_ptr.length > rec_bytes.size()) break;
+                mf::Reader er{ rec_bytes.subspan(off, card_ptr.length) };
+                out.cards.push_back(read_smf70_2_card(er));
+            }
         }
     }
 
     return out;
-}
+    }
 
 } // namespace smf

@@ -973,6 +973,162 @@ std::vector<uint8_t> make_smf1154_record(int year, int ddd, uint32_t time_hs, co
     return finish(std::move(body));
 }
 
+std::vector<uint8_t> make_smf74_2_record(int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
+    std::vector<uint8_t> body;
+    put_header(body, 74, year, ddd, time_hs, sys_id);
+    put_u16_be(body, 2); // subtype 2
+    put_u32_be(body, 5); // TRN
+    
+    uint32_t current_off = 26 + 5 * 12;
+    put_triplet(body, current_off, 48, 1); // [0] Product
+    current_off += 48;
+    put_triplet(body, 0, 0, 0); // [1] Control
+    put_triplet(body, 0, 0, 0); // [2] System
+    put_triplet(body, current_off, 100, 1); // [3] Path (1 entry)
+    current_off += 100;
+    put_triplet(body, current_off, 55, 1); // [4] Member (1 entry)
+    current_off += 55;
+
+    // Product Section
+    body.push_back(0); // version
+    for(int i=0; i<8; ++i) body.push_back(ebcdic_cp037("RMF"[i%3])); // product
+    put_u32_be(body, time_hs);
+    put_packed_yyyyddd(body, year, ddd);
+    put_u32_be(body, 90000); // interval
+    put_u16_be(body, 1000);  // sample count
+    for(int i=0; i<26; ++i) body.push_back(0);
+
+    // Path Section
+    put_ebcdic8(body, "SYS1    "); // system_name
+    put_u16_be(body, 0x0100);      // device_num
+    body.push_back(0x01);          // status
+    body.push_back(0x02);          // direction (Outbound)
+    body.push_back(0x01);          // type (CTC)
+    put_ebcdic8(body, "SYS2    "); // other_system
+    for(int i=0; i<15; ++i) body.push_back(0); // skip to 38
+    put_u32_be(body, 5000);        // signals_sent
+    for(int i=0; i<58; ++i) body.push_back(0); // pad to 100
+
+    // Member Section
+    put_ebcdic8(body, "SYS1    "); // system_name
+    put_ebcdic8(body, "GRP1    "); // group_name
+    for(int i=0; i<16; ++i) body.push_back(ebcdic_cp037("MEM1"[i%4])); // member_name
+    for(int i=0; i<3; ++i) body.push_back(0); // skip to 35
+    put_u32_be(body, 1000);        // signals_sent
+    put_u32_be(body, 800);         // signals_rcvd
+    for(int i=0; i<12; ++i) body.push_back(0); // pad to exactly 55 (35 + 8 + 12)
+
+    return finish(std::move(body));
+}
+
+std::vector<uint8_t> make_smf74_3_record(int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
+    std::vector<uint8_t> body;
+    put_header(body, 74, year, ddd, time_hs, sys_id);
+    put_u16_be(body, 3); // subtype 3
+    put_u32_be(body, 2); // TRN
+    
+    uint32_t current_off = 26 + 2 * 12;
+    put_triplet(body, current_off, 48, 1); // [0] Product
+    current_off += 48;
+    put_triplet(body, current_off, 320, 1); // [1] OMVS Data
+    current_off += 320;
+
+    // Product Section
+    body.push_back(0); // version
+    for(int i=0; i<8; ++i) body.push_back(ebcdic_cp037("RMF"[i%3])); // product
+    put_u32_be(body, time_hs);
+    put_packed_yyyyddd(body, year, ddd);
+    put_u32_be(body, 90000); // interval
+    put_u16_be(body, 1000);  // sample count
+    for(int i=0; i<26; ++i) body.push_back(0);
+
+    // OMVS Data
+    for(int i=0; i<12; ++i) body.push_back(0);
+    put_u32_be(body, 1000000);     // syscall_count (off 12)
+    for(int i=0; i<8; ++i) body.push_back(0);
+    put_u32_be(body, 50000);       // syscall_cpu_ms (off 24)
+    for(int i=0; i<44; ++i) body.push_back(0);
+    put_u32_be(body, 5000);        // max_processes (off 72)
+    put_u32_be(body, 2000);        // max_users (off 76)
+    for(int i=0; i<4; ++i) body.push_back(0);
+    put_u32_be(body, 1500);        // current_processes (off 84)
+    for(int i=0; i<8; ++i) body.push_back(0);
+    put_u32_be(body, 400);         // current_users (off 96)
+    for(int i=0; i<220; ++i) body.push_back(0); // pad to 320
+
+    return finish(std::move(body));
+}
+
+std::vector<uint8_t> make_smf74_6_record(int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
+    std::vector<uint8_t> body;
+    put_header(body, 74, year, ddd, time_hs, sys_id);
+    put_u16_be(body, 6); // subtype 6
+    put_u32_be(body, 2); // TRN
+    
+    uint32_t current_off = 26 + 2 * 12;
+    put_triplet(body, current_off, 48, 1); // [0] Product
+    current_off += 48;
+    put_triplet(body, current_off, 128, 1); // [1] Global Data
+    current_off += 128;
+
+    // Product Section
+    body.push_back(0); // version
+    for(int i=0; i<8; ++i) body.push_back(ebcdic_cp037("RMF"[i%3])); // product
+    put_u32_be(body, time_hs);
+    put_packed_yyyyddd(body, year, ddd);
+    put_u32_be(body, 90000); // interval
+    put_u16_be(body, 1000);  // sample count
+    for(int i=0; i<26; ++i) body.push_back(0);
+
+    // Global VTS Data
+    put_u32_be(body, 4096);        // max_virtual_mb (off 0)
+    put_u32_be(body, 1000000);     // inuse_virtual_pages (off 4)
+    put_u32_be(body, 512);         // min_fixed_mb (off 8)
+    put_u32_be(body, 100000);      // inuse_fixed_pages (off 12)
+    put_u64_be(body, 0x4110000000000000); // metadata_hits (off 16)
+    put_u64_be(body, 0x4105000000000000); // metadata_misses (off 24)
+    for(int i=0; i<96; ++i) body.push_back(0); // pad to 128
+
+    return finish(std::move(body));
+}
+
+std::vector<uint8_t> make_smf74_7_record(int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
+    std::vector<uint8_t> body;
+    put_header(body, 74, year, ddd, time_hs, sys_id);
+    put_u16_be(body, 7); // subtype 7 (20-21)
+    put_u16_be(body, 0); // Reserved (22-23)
+    put_u32_be(body, 4); // TRN (24-27)
+    
+    uint32_t current_off = 28 + 4 * 12; // Triplets start at 28
+    put_triplet(body, current_off, 48, 1); // [0] Product
+    current_off += 48;
+    put_triplet(body, 0, 0, 0); // [1] Global
+    put_triplet(body, 0, 0, 0); // [2] Switch
+    put_triplet(body, current_off, 128, 1); // [3] Port (1 entry)
+    current_off += 128;
+
+    // Product Section
+    body.push_back(0); // version
+    for(int i=0; i<8; ++i) body.push_back(ebcdic_cp037("RMF"[i%3])); // product
+    put_u32_be(body, time_hs);
+    put_packed_yyyyddd(body, year, ddd);
+    put_u32_be(body, 90000); // interval
+    put_u16_be(body, 1000);  // sample count
+    for(int i=0; i<26; ++i) body.push_back(0);
+
+    // Port Data
+    put_u16_be(body, 0x0001);      // port_num
+    put_u16_be(body, 0x0001);      // port_addr
+    for(int i=0; i<24; ++i) body.push_back(0); // skip to 28
+    put_u64_be(body, 0x4110000000000000); // words_rcvd (off 28)
+    put_u64_be(body, 0x4110000000000000); // words_sent (off 36)
+    put_u64_be(body, 0x4110000000000000); // frames_rcvd (off 44)
+    put_u64_be(body, 0x4110000000000000); // frames_sent (off 52)
+    for(int i=0; i<68; ++i) body.push_back(0); // pad to 128
+
+    return finish(std::move(body));
+}
+
 std::vector<uint8_t> make_rmf_record(uint8_t type, uint16_t subtype, int year, int ddd, uint32_t time_hs,
                                      int n_triplets, int data_len, int n_entries = 1, const char* sys_id = "SYS1") {
     std::vector<uint8_t> body;
@@ -1115,8 +1271,12 @@ int main(int argc, char* argv[]) {
             emit_small(72, true, 1); // Other subtype (header only)
             emit(make_smf73_record(Y, ddd, t, sys));
             emit_rmf_small(74, 1, 3, 72, 2); // 2 devices
+            emit(make_smf74_2_record(Y, ddd, t, sys));
+            emit(make_smf74_3_record(Y, ddd, t, sys));
             emit(make_smf74_4_record(Y, ddd, t, sys));
             emit(make_smf74_5_record(Y, ddd, t, sys));
+            emit(make_smf74_6_record(Y, ddd, t, sys));
+            emit(make_smf74_7_record(Y, ddd, t, sys));
             emit(make_smf74_8_record(Y, ddd, t, sys));
             emit(make_smf74_9_record(Y, ddd, t, sys));
             emit_rmf_small(75, 1, 2, 80, 2); // 2 pagesets
@@ -1157,8 +1317,12 @@ int main(int argc, char* argv[]) {
             emit(make_smf72_3_record(Y, DAY, t, "ONLINE", "CICSPOOL", 1, sys));
 
             // Coupling Facility & Storage Systems
+            emit(make_smf74_2_record(Y, DAY, t, sys));
+            emit(make_smf74_3_record(Y, DAY, t, sys));
             emit(make_smf74_4_record(Y, DAY, t, sys));
             emit(make_smf74_5_record(Y, DAY, t, sys));
+            emit(make_smf74_6_record(Y, DAY, t, sys));
+            emit(make_smf74_7_record(Y, DAY, t, sys));
             emit(make_smf74_8_record(Y, DAY, t, sys));
             emit(make_smf74_9_record(Y, DAY, t, sys));
 
@@ -1169,6 +1333,7 @@ int main(int argc, char* argv[]) {
 
             // High-Frequency Throughput
             emit(make_smf98_record(Y, DAY, t, sys));
+            emit(make_smf1154_record(Y, DAY, t, sys));
 
             // Interval records (Subtype 2) for long-running regions
             emit(make_smf30_record(2, Y, DAY, t, "CICSPROD", "CICSSTEP", 5000, 1200, sys));

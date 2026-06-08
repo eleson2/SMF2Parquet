@@ -129,13 +129,15 @@ struct Smf74_4Record {
     if (make_section_reader(rec_bytes, cf_ptr, 8, sr))
         out.cf = read_smf74_4_cf(sr);
 
-    if (str_ptr.count > 0 && str_ptr.length >= 20) {
-        out.structures.reserve(str_ptr.count);
-        for (uint32_t i = 0; i < str_ptr.count; ++i) {
-            const std::size_t off = str_ptr.offset + static_cast<std::size_t>(i) * str_ptr.length;
-            if (off + str_ptr.length > rec_bytes.size()) break;
-            mf::Reader er{ rec_bytes.subspan(off, str_ptr.length) };
-            out.structures.push_back(read_smf74_4_structure(er));
+    if (str_ptr.length >= 20) {
+        const uint32_t actual_count = str_ptr.safe_count(rec_bytes.size());
+        if (actual_count > 0) {
+            out.structures.reserve(actual_count);
+            for (uint32_t i = 0; i < actual_count; ++i) {
+                const std::size_t off = str_ptr.offset + static_cast<std::size_t>(i) * str_ptr.length;
+                mf::Reader er{ rec_bytes.subspan(off, str_ptr.length) };
+                out.structures.push_back(read_smf74_4_structure(er));
+            }
         }
     }
 

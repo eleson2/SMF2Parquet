@@ -58,8 +58,13 @@
 #include "sinks/smf72_3_parquet_sink.h"
 #include "sinks/smf73_1_parquet_sink.h"
 #include "sinks/smf74_1_parquet_sink.h"
+#include "sinks/smf74_2_path_parquet_sink.h"
+#include "sinks/smf74_2_member_parquet_sink.h"
+#include "sinks/smf74_3_parquet_sink.h"
 #include "sinks/smf74_4_parquet_sink.h"
 #include "sinks/smf74_5_parquet_sink.h"
+#include "sinks/smf74_6_parquet_sink.h"
+#include "sinks/smf74_7_parquet_sink.h"
 #include "sinks/smf74_8_parquet_sink.h"
 #include "sinks/smf74_9_parquet_sink.h"
 #include "sinks/smf75_1_parquet_sink.h"
@@ -120,8 +125,13 @@ struct SinkSet {
     s2p::Smf72_3ParquetSink s72_3;
     s2p::Smf73_1ParquetSink s73_1;
     s2p::Smf74_1ParquetSink s74_1;
+    s2p::Smf74_2_PathParquetSink s74_2_path;
+    s2p::Smf74_2_MemberParquetSink s74_2_member;
+    s2p::Smf74_3ParquetSink s74_3;
     s2p::Smf74_4ParquetSink s74_4;
     s2p::Smf74_5ParquetSink s74_5;
+    s2p::Smf74_6ParquetSink s74_6;
+    s2p::Smf74_7ParquetSink s74_7;
     s2p::Smf74_8ParquetSink s74_8;
     s2p::Smf74_9ParquetSink s74_9;
     s2p::Smf75_1ParquetSink s75_1;
@@ -143,8 +153,13 @@ struct SinkSet {
           s70_2(cust, out, run, src, ing),
           s71_1(cust, out, run, src, ing), s72_3(cust, out, run, src, ing),
           s73_1(cust, out, run, src, ing), s74_1(cust, out, run, src, ing),
+          s74_2_path(cust, out, run, src, ing),
+          s74_2_member(cust, out, run, src, ing),
+          s74_3(cust, out, run, src, ing),
           s74_4(cust, out, run, src, ing),
           s74_5(cust, out, run, src, ing),
+          s74_6(cust, out, run, src, ing),
+          s74_7(cust, out, run, src, ing),
           s74_8(cust, out, run, src, ing),
           s74_9(cust, out, run, src, ing),
           s75_1(cust, out, run, src, ing),
@@ -166,7 +181,9 @@ struct SinkSet {
 
     void close() {
         s30.close(); s70_1.close(); s70_2.close(); s70.close(); s71_1.close(); s71.close(); s72_3.close(); s72.close();
-        s73_1.close(); s73.close(); s74_1.close(); s74_4.close(); s74_5.close(); s74_8.close(); s74_9.close(); s74.close();
+        s73_1.close(); s73.close(); s74_1.close();
+        s74_2_path.close(); s74_2_member.close(); s74_3.close();
+        s74_4.close(); s74_5.close(); s74_6.close(); s74_7.close(); s74_8.close(); s74_9.close(); s74.close();
         s75_1.close(); s75.close(); s76_1.close(); s76.close(); s77_1.close(); s77.close(); s78_3.close(); s78.close();
         s79_1.close(); s79_2.close(); s79_13.close(); s79.close(); s98.close(); s1154.close(); s99.close(); s113.close(); s113_other.close(); raw.close();
     }
@@ -182,7 +199,12 @@ struct SinkSet {
         line("smf71-1", s71_1.rows()); line("smf71-other", s71.rows());
         line("smf72-3", s72_3.rows()); line("smf72-other", s72.rows());
         line("smf73-1", s73_1.rows()); line("smf73-other", s73.rows());
-        line("smf74-1", s74_1.rows()); line("smf74-4", s74_4.rows()); line("smf74-5", s74_5.rows()); line("smf74-8", s74_8.rows()); line("smf74-9", s74_9.rows()); line("smf74-other", s74.rows());
+        line("smf74-1", s74_1.rows()); 
+        line("smf74-2p", s74_2_path.rows()); line("smf74-2m", s74_2_member.rows());
+        line("smf74-3", s74_3.rows());
+        line("smf74-4", s74_4.rows()); line("smf74-5", s74_5.rows()); 
+        line("smf74-6", s74_6.rows()); line("smf74-7", s74_7.rows());
+        line("smf74-8", s74_8.rows()); line("smf74-9", s74_9.rows()); line("smf74-other", s74.rows());
         line("smf75-1", s75_1.rows()); line("smf75-other", s75.rows());
         line("smf76-1", s76_1.rows()); line("smf76-other", s76.rows());
         line("smf77-1", s77_1.rows());
@@ -210,67 +232,78 @@ struct Dispatcher {
 #ifdef SMF2PARQUET_WITH_PARQUET
         if (!sinks) return;
         const auto span = r.data;
+        uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
         switch (hdr.record_type) {
             case 30:  sinks->s30.write(smf::read_smf30(span)); break;
             case 70:  {
-                uint16_t subtype = r.can_read(2) ? r.peek_u16(20) : 0;
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
                 if (subtype == 1) sinks->s70_1.write(smf::read_smf70(span));
                 else if (subtype == 2) sinks->s70_2.write(smf::read_smf70_2(span));
                 else sinks->s70.write(hdr, subtype);
             } break;
             case 71:  {
-                auto rec = smf::read_smf71(span);
-                if (rec.subtype == 1) sinks->s71_1.write(rec);
-                else sinks->s71.write(hdr, rec.subtype);
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 1) sinks->s71_1.write(smf::read_smf71(span));
+                else sinks->s71.write(hdr, subtype);
             } break;
             case 72:  {
-                auto rec = smf::read_smf72(span);
-                if (rec.subtype == 3) sinks->s72_3.write(rec);
-                else sinks->s72.write(hdr, rec.subtype);
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 3) sinks->s72_3.write(smf::read_smf72(span));
+                else sinks->s72.write(hdr, subtype);
             } break;
             case 73:  {
-                auto rec = smf::read_smf73(span);
-                if (rec.subtype == 1) sinks->s73_1.write(rec);
-                else sinks->s73.write(hdr, rec.subtype);
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 1) sinks->s73_1.write(smf::read_smf73(span));
+                else sinks->s73.write(hdr, subtype);
             } break;
             case 74:  {
-                uint16_t subtype = r.can_read(2) ? r.peek_u16(20) : 0;
-                if (subtype == 4) {
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 1) {
+                    sinks->s74_1.write(smf::read_smf74(span));
+                } else if (subtype == 2) {
+                    auto rec = smf::read_smf74_2(span);
+                    sinks->s74_2_path.write(rec);
+                    sinks->s74_2_member.write(rec);
+                } else if (subtype == 3) {
+                    sinks->s74_3.write(smf::read_smf74_3(span));
+                } else if (subtype == 4) {
                     sinks->s74_4.write(smf::read_smf74_4(span));
                 } else if (subtype == 5) {
                     sinks->s74_5.write(smf::read_smf74_5(span));
+                } else if (subtype == 6) {
+                    sinks->s74_6.write(smf::read_smf74_6(span));
+                } else if (subtype == 7) {
+                    sinks->s74_7.write(smf::read_smf74_7(span));
                 } else if (subtype == 8) {
                     sinks->s74_8.write(smf::read_smf74_8(span));
                 } else if (subtype == 9) {
                     sinks->s74_9.write(smf::read_smf74_9(span));
                 } else {
-                    auto rec = smf::read_smf74(span);
-                    if (rec.subtype == 1) sinks->s74_1.write(rec);
-                    else sinks->s74.write(hdr, rec.subtype);
+                    sinks->s74.write(hdr, subtype);
                 }
             } break;
             case 75:  {
-                auto rec = smf::read_smf75(span);
-                if (rec.subtype == 1) sinks->s75_1.write(rec);
-                else sinks->s75.write(hdr, rec.subtype);
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 1) sinks->s75_1.write(smf::read_smf75(span));
+                else sinks->s75.write(hdr, subtype);
             } break;
             case 76:  {
-                auto rec = smf::read_smf76(span);
-                if (rec.subtype == 1) sinks->s76_1.write(rec);
-                else sinks->s76.write(hdr, rec.subtype);
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 1) sinks->s76_1.write(smf::read_smf76(span));
+                else sinks->s76.write(hdr, subtype);
             } break;
             case 77:  {
-                auto rec = smf::read_smf77(span);
-                if (rec.subtype == 1) sinks->s77_1.write(rec);
-                else sinks->s77.write(hdr, rec.subtype);
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 1) sinks->s77_1.write(smf::read_smf77(span));
+                else sinks->s77.write(hdr, subtype);
             } break;
             case 78:  {
-                auto rec = smf::read_smf78(span);
-                if (rec.subtype == 3) sinks->s78_3.write(rec);
-                else sinks->s78.write(hdr, rec.subtype);
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 3) sinks->s78_3.write(smf::read_smf78(span));
+                else sinks->s78.write(hdr, subtype);
             } break;
             case 79:  {
-                uint16_t subtype = r.can_read(2) ? r.peek_u16(20) : 0;
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
                 if (subtype == 1) {
                     sinks->s79_1.write(smf::read_smf79(span));
                 } else if (subtype == 2) {
@@ -278,17 +311,19 @@ struct Dispatcher {
                 } else if (subtype == 13) {
                     sinks->s79_13.write(smf::read_smf79(span));
                 } else {
-                    auto rec = smf::read_smf79(span);
-                    sinks->s79.write(hdr, rec.subtype);
+                    sinks->s79.write(hdr, subtype);
                 }
             } break;
             case 98:  sinks->s98.write(smf::read_smf98(span)); break;
-            case 99:  { auto rec = smf::read_smf99(span);  sinks->s99.write(rec.header, rec.subtype); } break;
+            case 99:  {
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                sinks->s99.write(hdr, subtype);
+            } break;
             case 1154: sinks->s1154.write(smf::read_smf1154(span)); break;
             case 113: {
-                auto rec = smf::read_smf113(span);
-                if (rec.subtype == 1 || rec.subtype == 2) sinks->s113.write(rec);
-                else sinks->s113_other.write(hdr, rec.subtype);
+                uint16_t subtype = r.can_read(2) ? r.peek_u16(r.pos) : 0;
+                if (subtype == 1 || subtype == 2) sinks->s113.write(smf::read_smf113(span));
+                else sinks->s113_other.write(hdr, subtype);
             } break;
             default:  sinks->raw.write(hdr, span); break;
         }

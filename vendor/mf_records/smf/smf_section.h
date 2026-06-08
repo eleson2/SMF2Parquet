@@ -43,6 +43,15 @@ struct SectionPtr {
     uint32_t offset{0};  // byte offset from record start to section data
     uint32_t length{0};  // byte length of each section entry
     uint32_t count{0};   // number of entries (0 = section absent)
+
+    // Returns the number of entries that can actually fit in the record
+    // starting from offset, preventing bad_alloc on reserve().
+    [[nodiscard]] uint32_t safe_count(std::size_t rec_size) const noexcept {
+        if (count == 0 || length == 0 || offset >= rec_size) return 0;
+        const std::size_t remaining = rec_size - offset;
+        const std::size_t max_possible = remaining / length;
+        return (count < max_possible) ? count : static_cast<uint32_t>(max_possible);
+    }
 };
 
 // Read one 12-byte triplet from the current reader position.

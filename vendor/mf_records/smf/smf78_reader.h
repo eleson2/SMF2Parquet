@@ -141,13 +141,15 @@ struct Smf78Record {
     if (make_section_reader(rec_bytes, prod_ptr, 24, sr))
         out.product = read_smf78_product(sr);
 
-    if (lcu_ptr.count > 0 && lcu_ptr.length >= 24) {
-        out.lcus.reserve(lcu_ptr.count);
-        for (uint32_t i = 0; i < lcu_ptr.count; ++i) {
-            const std::size_t off = lcu_ptr.offset + static_cast<std::size_t>(i) * lcu_ptr.length;
-            if (off + lcu_ptr.length > rec_bytes.size()) break;
-            mf::Reader er{ rec_bytes.subspan(off, lcu_ptr.length) };
-            out.lcus.push_back(read_smf78_3_lcu(er));
+    if (lcu_ptr.length >= 24) {
+        const uint32_t actual_count = lcu_ptr.safe_count(rec_bytes.size());
+        if (actual_count > 0) {
+            out.lcus.reserve(actual_count);
+            for (uint32_t i = 0; i < actual_count; ++i) {
+                const std::size_t off = lcu_ptr.offset + static_cast<std::size_t>(i) * lcu_ptr.length;
+                mf::Reader er{ rec_bytes.subspan(off, lcu_ptr.length) };
+                out.lcus.push_back(read_smf78_3_lcu(er));
+            }
         }
     }
 

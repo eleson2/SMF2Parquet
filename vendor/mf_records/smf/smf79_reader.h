@@ -163,33 +163,39 @@ struct Smf79Record {
         out.product = read_smf79_product(sr);
 
     if (out.subtype == 1) {
-        if (data_ptr.count > 0 && data_ptr.length >= 200) {
-            out.as_states.reserve(data_ptr.count);
-            for (uint32_t i = 0; i < data_ptr.count; ++i) {
-                const std::size_t off = data_ptr.offset + static_cast<std::size_t>(i) * data_ptr.length;
-                if (off + data_ptr.length > rec_bytes.size()) break;
-                mf::Reader er{ rec_bytes.subspan(off, data_ptr.length) };
-                out.as_states.push_back(read_smf79_1_asid(er));
+        if (data_ptr.length >= 200) {
+            const uint32_t actual_count = data_ptr.safe_count(rec_bytes.size());
+            if (actual_count > 0) {
+                out.as_states.reserve(actual_count);
+                for (uint32_t i = 0; i < actual_count; ++i) {
+                    const std::size_t off = data_ptr.offset + static_cast<std::size_t>(i) * data_ptr.length;
+                    mf::Reader er{ rec_bytes.subspan(off, data_ptr.length) };
+                    out.as_states.push_back(read_smf79_1_asid(er));
+                }
             }
         }
     } else if (out.subtype == 2) {
-        if (data_ptr.count > 0 && data_ptr.length >= 150) {
-            out.as_resources.reserve(data_ptr.count);
-            for (uint32_t i = 0; i < data_ptr.count; ++i) {
-                const std::size_t off = data_ptr.offset + static_cast<std::size_t>(i) * data_ptr.length;
-                if (off + data_ptr.length > rec_bytes.size()) break;
-                mf::Reader er{ rec_bytes.subspan(off, data_ptr.length) };
-                out.as_resources.push_back(read_smf79_2_asid(er));
+        if (data_ptr.length >= 150) {
+            const uint32_t actual_count = data_ptr.safe_count(rec_bytes.size());
+            if (actual_count > 0) {
+                out.as_resources.reserve(actual_count);
+                for (uint32_t i = 0; i < actual_count; ++i) {
+                    const std::size_t off = data_ptr.offset + static_cast<std::size_t>(i) * data_ptr.length;
+                    mf::Reader er{ rec_bytes.subspan(off, data_ptr.length) };
+                    out.as_resources.push_back(read_smf79_2_asid(er));
+                }
             }
         }
     } else if (out.subtype == 13) {
-        if (data_ptr.count > 0 && data_ptr.length >= 10) {
-            out.events.reserve(data_ptr.count);
-            for (uint32_t i = 0; i < data_ptr.count; ++i) {
-                const std::size_t off = data_ptr.offset + static_cast<std::size_t>(i) * data_ptr.length;
-                if (off + data_ptr.length > rec_bytes.size()) break;
-                mf::Reader er{ rec_bytes.subspan(off, data_ptr.length) };
-                out.events.push_back(read_smf79_13_event(er));
+        if (data_ptr.length >= 10) {
+            const uint32_t actual_count = data_ptr.safe_count(rec_bytes.size());
+            if (actual_count > 0) {
+                out.events.reserve(actual_count);
+                for (uint32_t i = 0; i < actual_count; ++i) {
+                    const std::size_t off = data_ptr.offset + static_cast<std::size_t>(i) * data_ptr.length;
+                    mf::Reader er{ rec_bytes.subspan(off, data_ptr.length) };
+                    out.events.push_back(read_smf79_13_event(er));
+                }
             }
         }
     }
