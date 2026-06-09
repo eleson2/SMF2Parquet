@@ -52,19 +52,26 @@ struct Smf70_2Builders {
     }
 
     uint64_t append(const smf::Smf70_2Record& r, std::string_view src, int64_t ingest_us) {
+        const uint64_t n = r.cards.size();
+        if (n == 0) return 0;
+
         const auto ist = datetime_to_epoch_us(r.product.interval_start_date,
                                               r.product.interval_start_time);
+        const uint32_t int_ms = r.product.interval_hund * 10u;
+        const auto& sysplex = r.product.sysplex_name;
+
+        common.append_n(r.header, r.subtype, src, ingest_us, n);
+
         for (const auto& c : r.cards) {
-            common.append(r.header, r.subtype, src, ingest_us);
             append_ts(interval_start_ts.get(), ist);
-            arrow_ok(interval_ms ->Append(r.product.interval_hund * 10u));
-            arrow_ok(sysplex_name->Append(r.product.sysplex_name));
+            arrow_ok(interval_ms ->Append(int_ms));
+            arrow_ok(sysplex_name->Append(sysplex));
             arrow_ok(card_index  ->Append(c.card_index));
             arrow_ok(card_type   ->Append(c.card_type));
             arrow_ok(ops_count   ->Append(c.ops_count));
             arrow_ok(exec_time   ->Append(c.exec_time));
         }
-        return r.cards.size();
+        return n;
     }
 
     arrow::ArrayVector finish() {
@@ -88,8 +95,9 @@ public:
     void write(const smf::Smf70_2Record& r) {
         const auto day = CommonColumns::partition_day(r.header);
         const auto& sys = r.header.system_id;
-        const uint64_t n = table_.partition(sys, day).append(r, source_, ingest_);
-        table_.added(sys, day, n);
+        auto p = table_.get_partition(sys, day);
+        const uint64_t n = p.builders->append(r, source_, ingest_);
+        table_.added(p, n);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

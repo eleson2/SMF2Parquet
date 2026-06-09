@@ -1,10 +1,9 @@
 #pragma once
 /*
- * sinks/smf1154_parquet_sink.h — Parquet sink for SMF type 1154 (Compliance Evidence).
- * Multi-row: one output row per evidence entry.
+ * sinks/smf1154_1_parquet_sink.h — Parquet sink for SMF type 1154 subtype 1 (TCP/IP).
  */
 
-#include "smf/smf1154_reader.h"   // smf::Smf1154Record
+#include "smf/smf1154_reader.h"
 #include "common_columns.h"
 #include "partitioned_table.h"
 
@@ -18,7 +17,7 @@
 
 namespace s2p {
 
-struct Smf1154Builders {
+struct Smf1154_1Builders {
     CommonColumns common;
     std::shared_ptr<arrow::StringBuilder> system_name;
     std::shared_ptr<arrow::StringBuilder> sysplex_name;
@@ -28,7 +27,7 @@ struct Smf1154Builders {
     std::shared_ptr<arrow::UInt8Builder>  ip_version;
     std::shared_ptr<arrow::UInt32Builder> up_time_sec;
 
-    explicit Smf1154Builders(arrow::MemoryPool* pool)
+    explicit Smf1154_1Builders(arrow::MemoryPool* pool)
         : common(pool),
           system_name (std::make_shared<arrow::StringBuilder>(pool)),
           sysplex_name(std::make_shared<arrow::StringBuilder>(pool)),
@@ -52,8 +51,13 @@ struct Smf1154Builders {
     }
 
     uint64_t append(const smf::Smf1154Record& r, std::string_view src, int64_t ingest_us) {
+        if (r.subtype != 1) return 0;
+        const uint64_t n = r.tcp_stacks.size();
+        if (n == 0) return 0;
+
+        common.append_n(r.header, r.subtype, src, ingest_us, n);
+
         for (const auto& s : r.tcp_stacks) {
-            common.append(r.header, r.subtype, src, ingest_us);
             arrow_ok(system_name ->Append(r.common.system_name));
             arrow_ok(sysplex_name->Append(r.common.sysplex_name));
             arrow_ok(job_name    ->Append(r.common.job_name));
@@ -62,7 +66,7 @@ struct Smf1154Builders {
             arrow_ok(ip_version  ->Append(s.ip_version));
             arrow_ok(up_time_sec ->Append(s.up_time_sec));
         }
-        return r.tcp_stacks.size();
+        return n;
     }
 
     arrow::ArrayVector finish() {
@@ -76,18 +80,20 @@ struct Smf1154Builders {
     }
 };
 
-class Smf1154ParquetSink {
+class Smf1154_1ParquetSink {
 public:
-    Smf1154ParquetSink(std::string customer, std::string out_root, std::string run_id,
-                     std::string source_file, int64_t ingest_us)
+    Smf1154_1ParquetSink(std::string customer, std::string out_root, std::string run_id,
+                       std::string source_file, int64_t ingest_us)
         : source_(std::move(source_file)), ingest_(ingest_us),
-          table_("smf1154", std::move(customer), Smf1154Builders::schema(), std::move(out_root), std::move(run_id)) {}
+          table_("smf1154-1", std::move(customer), Smf1154_1Builders::schema(), std::move(out_root), std::move(run_id)) {}
 
     void write(const smf::Smf1154Record& r) {
+        if (r.subtype != 1) return;
         const auto day = CommonColumns::partition_day(r.header);
         const auto& sys = r.header.system_id;
-        const uint64_t n = table_.partition(sys, day).append(r, source_, ingest_);
-        table_.added(sys, day, n);
+        auto p = table_.get_partition(sys, day);
+        const uint64_t n = p.builders->append(r, source_, ingest_);
+        table_.added(p, n);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }
@@ -95,7 +101,7 @@ public:
 private:
     std::string source_;
     int64_t     ingest_;
-    PartitionedTable<Smf1154Builders> table_;
+    PartitionedTable<Smf1154_1Builders> table_;
 };
 
 } // namespace s2p

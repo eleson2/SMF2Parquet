@@ -35,7 +35,7 @@ struct RawBuilders {
 
     uint64_t append(const mf::SmfHeader& h, uint16_t st,
                     std::span<const std::byte> rec, std::string_view src, int64_t ingest_us) {
-        common.append(h, st, src, ingest_us);
+        common.append_n(h, st, src, ingest_us, 1);
         arrow_ok(body->Append(reinterpret_cast<const uint8_t*>(rec.data()),
                               static_cast<int32_t>(rec.size())));
         return 1;
@@ -59,9 +59,9 @@ public:
     void write(const mf::SmfHeader& h, std::span<const std::byte> rec) {
         const auto day = CommonColumns::partition_day(h);
         const auto& sys = h.system_id;
-        // Unknown types: subtype semantics vary, so record 0 here.
-        table_.partition(sys, day).append(h, /*subtype=*/0, rec, source_, ingest_);
-        table_.added(sys, day, 1);
+        auto p = table_.get_partition(sys, day);
+        p.builders->append(h, /*subtype=*/0, rec, source_, ingest_);
+        table_.added(p, 1);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

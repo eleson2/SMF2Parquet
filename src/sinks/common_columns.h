@@ -55,15 +55,25 @@ struct CommonColumns {
     }
 
     void append(const mf::SmfHeader& h, uint16_t st, std::string_view src, int64_t ingest_us) {
-        append_ts  (smf_ts.get(),   datetime_to_epoch_us(h.date, h.time));
-        append_date(smf_date.get(), date_to_epoch_days(h.date));
-        arrow_ok(system_id   ->Append(h.system_id));
-        arrow_ok(subsystem_id->Append(h.subsystem_id));
-        arrow_ok(record_type ->Append(h.record_type));
-        arrow_ok(subtype     ->Append(st));
-        arrow_ok(flags       ->Append(h.flags));
-        arrow_ok(source_file ->Append(src));
-        arrow_ok(ingest_ts   ->Append(ingest_us));
+        append_n(h, st, src, ingest_us, 1);
+    }
+
+    void append_n(const mf::SmfHeader& h, uint16_t st, std::string_view src, int64_t ingest_us, uint64_t n) {
+        if (n == 0) return;
+        const auto ts = datetime_to_epoch_us(h.date, h.time);
+        const auto day = date_to_epoch_days(h.date);
+        
+        for (uint64_t i = 0; i < n; ++i) {
+            append_ts  (smf_ts.get(),   ts);
+            append_date(smf_date.get(), day);
+            arrow_ok(system_id   ->Append(h.system_id));
+            arrow_ok(subsystem_id->Append(h.subsystem_id));
+            arrow_ok(record_type ->Append(static_cast<uint8_t>(h.record_type)));
+            arrow_ok(subtype     ->Append(st));
+            arrow_ok(flags       ->Append(h.flags));
+            arrow_ok(source_file ->Append(src));
+            arrow_ok(ingest_ts   ->Append(ingest_us));
+        }
     }
 
     void finish_into(arrow::ArrayVector& out) {

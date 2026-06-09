@@ -142,7 +142,7 @@ Implement full field-level parsing and bespoke sinks for all prioritized types/s
 - [x] ✅ **SMF 71-1 (Paging Activity)**: Central/virtual storage paging.
 - [x] ✅ **SMF 73-1 (Channel Path Activity)**: Channel path utilization.
 - [x] ✅ **SMF 77-1 (Enqueue Activity)**: Contention metrics.
-- [x] ✅ **SMF 74-4 (Coupling Facility)**: CF structure and link performance.
+- [x] ✅ **SMF 74 (All subtypes)**: Fully implemented field-level parsing for DASD(1), XCF(2), OMVS(3), CF(4), Cache(5), VTS(6), FICON(7), Disk(8), and PCIE(9).
 
 ### 7.3 Modern & Advanced (z/OS 3.1 era)
 - [x] ✅ **SMF 113 (Hardware Counters)**: CPI, L1/L2 cache misses (Subtypes 1 & 2).

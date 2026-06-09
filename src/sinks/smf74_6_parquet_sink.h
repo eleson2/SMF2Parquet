@@ -56,7 +56,7 @@ struct Smf74_6Builders {
     uint64_t append(const smf::Smf74_6Record& r, std::string_view src, int64_t ingest_us) {
         const auto ist = datetime_to_epoch_us(r.product.interval_start_date,
                                               r.product.interval_start_time);
-        common.append(r.header, r.subtype, src, ingest_us);
+        common.append_n(r.header, r.subtype, src, ingest_us, 1);
         append_ts(interval_start_ts.get(), ist);
         arrow_ok(sysplex_name->Append(r.product.sysplex_name));
         arrow_ok(max_virtual_mb->Append(r.global.max_virtual_mb));
@@ -89,8 +89,9 @@ public:
     void write(const smf::Smf74_6Record& r) {
         const auto day = CommonColumns::partition_day(r.header);
         const auto& sys = r.header.system_id;
-        const uint64_t n = table_.partition(sys, day).append(r, source_, ingest_);
-        table_.added(sys, day, n);
+        auto p = table_.get_partition(sys, day);
+        const uint64_t n = p.builders->append(r, source_, ingest_);
+        table_.added(p, n);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

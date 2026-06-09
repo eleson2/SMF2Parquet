@@ -37,12 +37,14 @@ struct Smf98Builders {
     }
 
     uint64_t append(const smf::Smf98Record& r, std::string_view src, int64_t ingest_us) {
+        const uint64_t n = r.as_consumption.size();
+        if (n == 0) return 0;
+        common.append_n(r.header, r.subtype, src, ingest_us, n);
         for (const auto& c : r.as_consumption) {
-            common.append(r.header, r.subtype, src, ingest_us);
             arrow_ok(asid    ->Append(c.asid));
             arrow_ok(job_name->Append(c.job_name));
         }
-        return r.as_consumption.size();
+        return n;
     }
 
     arrow::ArrayVector finish() {
@@ -64,8 +66,9 @@ public:
     void write(const smf::Smf98Record& r) {
         const auto day = CommonColumns::partition_day(r.header);
         const auto& sys = r.header.system_id;
-        const uint64_t n = table_.partition(sys, day).append(r, source_, ingest_);
-        table_.added(sys, day, n);
+        auto p = table_.get_partition(sys, day);
+        const uint64_t n = p.builders->append(r, source_, ingest_);
+        table_.added(p, n);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

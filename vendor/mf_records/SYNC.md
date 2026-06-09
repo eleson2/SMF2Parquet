@@ -22,5 +22,6 @@ vendor/mf_records/sync.sh /path/to/MF-records-to-C
 
 ## Note
 
-Once `MF-records-to-C` is deleted, **this vendored copy becomes the source of truth** — make
+On
+leted, **this vendored copy becomes the source of truth** — make
 field-offset fixes (TODO Phase 7) directly here. Do not re-add a dependency on the sibling repo.

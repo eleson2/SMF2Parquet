@@ -81,13 +81,23 @@ struct SmfHeader {
 
 struct Triplet {
     uint32_t offset;  /* byte offset from record start (byte 0) */
-    uint32_t count;   /* number of section instances            */
     uint32_t len;     /* length of each instance in bytes       */
+    uint32_t count;   /* number of section instances            */
 };
 
 /* Read one 12-byte triplet and advance the cursor */
 [[nodiscard]] constexpr Triplet read_triplet(Reader& r) {
     return { r.read_u32(), r.read_u32(), r.read_u32() };
+}
+
+/*
+ * Return the subtype word from a record without advancing the reader.
+ * Assumes the reader is already positioned at the subtype word
+ * (as left by read_smf_header).
+ */
+[[nodiscard]] constexpr uint16_t peek_subtype(const Reader& r) {
+    if (!r.can_read(2)) return 0;
+    return r.peek_u16(r.pos);
 }
 
 } // namespace mf

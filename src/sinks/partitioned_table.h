@@ -27,7 +27,7 @@
 
 #include <cstdint>
 #include <filesystem>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -38,6 +38,11 @@ namespace s2p {
 template<class Builders>
 class PartitionedTable {
 public:
+    struct Partition {
+        Builders* builders;
+        void*     part_ptr; // internal use
+    };
+
     PartitionedTable(std::string table_name,
                      std::string customer,
                      std::shared_ptr<arrow::Schema> schema,
@@ -48,9 +53,14 @@ public:
           schema_(std::move(schema)), out_root_(std::move(out_root)),
           run_id_(std::move(run_id)), batch_rows_(batch_rows) {}
 
-    // Get (creating if needed) the builders for a record's system and date partition.
-    Builders& partition(const std::string& system_id, std::optional<int32_t> day) {
-        const PartitionKey key{system_id, day.value_or(kNoDate)};
+    // Get (creating if needed) the handle for a record's system and date partition.
+    Partition get_partition(const std::string& system_id, std::optional<int32_t> day) {
+        const int32_t d = day.value_or(kNoDate);
+        if (last_part_ && last_day_ == d && last_sys_ == system_id) {
+            return { last_part_->builders.get(), last_part_ };
+        }
+
+        const PartitionKey key{system_id, d};
         auto it = parts_.find(key);
         if (it == parts_.end()) {
             Part p;
@@ -58,17 +68,21 @@ public:
             p.builders = std::make_unique<Builders>(arrow::default_memory_pool());
             it = parts_.emplace(key, std::move(p)).first;
         }
-        return *it->second.builders;
+        
+        last_sys_  = system_id;
+        last_day_  = d;
+        last_part_ = &it->second;
+        
+        return { last_part_->builders.get(), last_part_ };
     }
 
     // Record that n rows were appended; flush at threshold.
-    void added(const std::string& system_id, std::optional<int32_t> day, uint64_t n) {
+    void added(Partition& p, uint64_t n) {
         if (n == 0) return;
-        const PartitionKey key{system_id, day.value_or(kNoDate)};
-        Part& p = parts_.at(key);
-        p.pending += n;
+        Part* internal_p = static_cast<Part*>(p.part_ptr);
+        internal_p->pending += n;
         total_    += n;
-        if (p.pending >= static_cast<uint64_t>(batch_rows_)) flush(p);
+        if (internal_p->pending >= static_cast<uint64_t>(batch_rows_)) flush(*internal_p);
     }
 
     void close() {
@@ -87,9 +101,16 @@ private:
     struct PartitionKey {
         std::string system_id;
         int32_t     day;
-        bool operator<(const PartitionKey& other) const {
-            if (system_id != other.system_id) return system_id < other.system_id;
-            return day < other.day;
+        bool operator==(const PartitionKey& other) const {
+            return day == other.day && system_id == other.system_id;
+        }
+    };
+
+    struct PartitionKeyHash {
+        std::size_t operator()(const PartitionKey& k) const noexcept {
+            std::size_t h1 = std::hash<std::string>{}(k.system_id);
+            std::size_t h2 = std::hash<int32_t>{}(k.day);
+            return h1 ^ (h2 << 1);
         }
     };
 
@@ -166,7 +187,12 @@ private:
     std::shared_ptr<arrow::Schema> schema_;
     int64_t  batch_rows_;
     uint64_t total_{0};
-    std::map<PartitionKey, Part> parts_;
+    std::unordered_map<PartitionKey, Part, PartitionKeyHash> parts_;
+    
+    // Tiny cache for performance
+    Part*       last_part_{nullptr};
+    std::string last_sys_;
+    int32_t     last_day_{0};
 };
 
 } // namespace s2p

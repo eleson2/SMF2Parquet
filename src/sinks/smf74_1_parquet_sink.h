@@ -73,13 +73,20 @@ struct Smf74_1Builders {
     }
 
     uint64_t append(const smf::Smf74Record& r, std::string_view src, int64_t ingest_us) {
+        const uint64_t n = r.devices.size();
+        if (n == 0) return 0;
+
         const auto ist = datetime_to_epoch_us(r.product.interval_start_date,
                                               r.product.interval_start_time);
+        const uint32_t int_ms = r.product.interval_hund * 10u;
+        const uint16_t sam    = r.product.sample_count;
+
+        common.append_n(r.header, r.subtype, src, ingest_us, n);
+
         for (const auto& dev : r.devices) {
-            common.append(r.header, r.subtype, src, ingest_us);
             append_ts(interval_start_ts.get(), ist);
-            arrow_ok(interval_ms  ->Append(r.product.interval_hund * 10u));
-            arrow_ok(sample_count ->Append(r.product.sample_count));
+            arrow_ok(interval_ms  ->Append(int_ms));
+            arrow_ok(sample_count ->Append(sam));
             arrow_ok(sysplex_name ->Append(r.product.sysplex_name));
             arrow_ok(device_num   ->Append(dev.device_num));
             arrow_ok(volume_serial->Append(dev.volume_serial));
@@ -92,7 +99,7 @@ struct Smf74_1Builders {
             arrow_ok(disconnect_ms->Append(dev.disconnect_hund * 10u));
             arrow_ok(queue_depth  ->Append(dev.queue_depth));
         }
-        return r.devices.size();
+        return n;
     }
 
     arrow::ArrayVector finish() {
@@ -119,8 +126,9 @@ public:
     void write(const smf::Smf74Record& r) {
         const auto day = CommonColumns::partition_day(r.header);
         const auto& sys = r.header.system_id;
-        const uint64_t n = table_.partition(sys, day).append(r, source_, ingest_);
-        table_.added(sys, day, n);
+        auto p = table_.get_partition(sys, day);
+        const uint64_t n = p.builders->append(r, source_, ingest_);
+        table_.added(p, n);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

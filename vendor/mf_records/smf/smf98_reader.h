@@ -1,29 +1,8 @@
 #pragma once
 /*
  * smf/smf98_reader.h — SMF Type 98 Subtype 1: z/OS Supervisor Activity (parse core).
- *
- * High-frequency performance data (5-second intervals).
- * Record structure uses 8-byte triplets (4-byte offset, 2-byte length, 2-byte count).
- *
- *   Offset 0-19   Standard 20-byte SMF header
- *   Offset 20-21  Subtype (uint16 BE, = 1)
- *   Offset 24     SMF98IND: Flags
- *   Offset 26     SMF98SDSLEN: Length of self-defining section
- *   Offset 28     SMF98SDSTRIPLETSNUM: Number of triplets
- *   Offset 32+    Triplet area (8 bytes per triplet)
- *
- * Triplet order:
- *   [0] Identification
- *   [1] Context Summary
- *   [2] Environment
- *   ...
- *   [5] Utilization
- *   ...
- *   [11] Consumption (Address Space)
  */
 
-#include "../dataset_reader.h"
-#include "../smf_reader.h"
 #include "smf_section.h"
 
 #include <cstdint>
@@ -37,6 +16,13 @@ struct Triplet8 {
     uint32_t offset{0};
     uint16_t length{0};
     uint16_t count{0};
+
+    [[nodiscard]] uint32_t safe_count(std::size_t rec_size) const noexcept {
+        if (count == 0 || length == 0 || offset >= rec_size) return 0;
+        const std::size_t remaining = rec_size - offset;
+        const std::size_t max_possible = remaining / length;
+        return (count < max_possible) ? count : static_cast<uint32_t>(max_possible);
+    }
 };
 
 [[nodiscard]] inline Triplet8 read_triplet_8(mf::Reader& r) {
@@ -48,14 +34,9 @@ struct Triplet8 {
     return t;
 }
 
-struct Smf98Utilization {
-    uint64_t cpu_busy_time{0}; // offset varies, common metric
-};
-
 struct Smf98Consumption {
     uint16_t    asid{0};
     std::string job_name;
-    uint64_t    cpu_time_us{0};
 };
 
 struct Smf98Record {
@@ -73,7 +54,6 @@ struct Smf98Record {
         sr.pos = 2;
         c.job_name = mf::rtrim(sr.read_ebcdic(8));
     }
-    // CPU time is deeper in nested triplets, skipping for now
     return c;
 }
 
@@ -94,13 +74,13 @@ struct Smf98Record {
     r.pos = 32;
     if (num_triplets < 12) return out;
 
-    // Skip first 11 triplets to get to Consumption Section [11]
-    for (int i = 0; i < 11; ++i) read_triplet_8(r);
+    for (int i = 0; i < 11; ++i) (void)read_triplet_8(r);
     const Triplet8 cons_ptr = read_triplet_8(r);
 
-    if (cons_ptr.count > 0 && cons_ptr.length >= 10) {
-        out.as_consumption.reserve(cons_ptr.count);
-        for (uint16_t i = 0; i < cons_ptr.count; ++i) {
+    const uint32_t actual_count = cons_ptr.safe_count(rec_bytes.size());
+    if (actual_count > 0 && cons_ptr.length >= 10) {
+        out.as_consumption.reserve(actual_count);
+        for (uint16_t i = 0; i < actual_count; ++i) {
             const std::size_t off = cons_ptr.offset + static_cast<std::size_t>(i) * cons_ptr.length;
             if (off + cons_ptr.length > rec_bytes.size()) break;
             mf::Reader er{ rec_bytes.subspan(off, cons_ptr.length) };

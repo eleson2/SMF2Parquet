@@ -54,8 +54,9 @@ public:
     void write(const mf::SmfHeader& h, uint16_t subtype) {
         const auto day = CommonColumns::partition_day(h);
         const auto& sys = h.system_id;
-        table_.partition(sys, day).append(h, subtype, source_, ingest_);
-        table_.added(sys, day, 1);
+        auto p = table_.get_partition(sys, day);
+        p.builders->append(h, subtype, source_, ingest_);
+        table_.added(p, 1);
     }
     void close() { table_.close(); }
     uint64_t rows() const noexcept { return table_.rows(); }

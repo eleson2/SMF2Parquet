@@ -575,6 +575,56 @@ inline constexpr uint64_t TOD_EPOCH_OFFSET_SEC = 2208988800ULL; /* 1900→1970 *
 }
 
 /*════════════════════════════════════════════════════════════════
+  Temporal Conversions (Howard Hinnant's algorithms)
+  Used to convert mainframe MfDate/MfTime to Unix epoch values.
+════════════════════════════════════════════════════════════════*/
+
+/* Days since 1970-01-01 for a proleptic Gregorian date. */
+[[nodiscard]] constexpr int64_t days_from_civil(int y, unsigned m, unsigned d) noexcept {
+    y -= (m <= 2);
+    const int64_t  era = (y >= 0 ? y : y - 399) / 400;
+    const unsigned yoe = static_cast<unsigned>(y - era * 400);
+    const unsigned doy = (153u * (m + (m > 2 ? static_cast<unsigned>(-3) : 9u)) + 2u) / 5u + d - 1u;
+    const unsigned doe = yoe * 365u + yoe / 4u - yoe / 100u + doy;
+    return era * 146097LL + static_cast<int64_t>(doe) - 719468LL;
+}
+
+/* Inverse of days_from_civil: epoch days -> (year, month, day). */
+constexpr void civil_from_days(int64_t z, int& y, unsigned& m, unsigned& d) noexcept {
+    z += 719468;
+    const int64_t  era = (z >= 0 ? z : z - 146096) / 146097;
+    const unsigned doe = static_cast<unsigned>(z - era * 146097);
+    const unsigned yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    const unsigned doy = doe - (365u * yoe + yoe / 4 - yoe / 100);
+    const unsigned mp  = (5u * doy + 2) / 153;
+    d = doy - (153u * mp + 2) / 5 + 1;
+    m = mp < 10 ? mp + 3 : mp - 9;
+    y = static_cast<int>(yoe) + static_cast<int>(era * 400) + (m <= 2);
+}
+
+[[nodiscard]] constexpr bool is_plausible_date(const MfDate& d) noexcept {
+    return d.year >= 1970 && d.year <= 9999 &&
+           d.month >= 1 && d.month <= 12 &&
+           d.day   >= 1 && d.day   <= 31;
+}
+
+/* date32 value (epoch days) */
+[[nodiscard]] constexpr int32_t mf_date_to_epoch_days(const MfDate& d) noexcept {
+    if (!is_plausible_date(d)) return 0;
+    return static_cast<int32_t>(days_from_civil(d.year, static_cast<unsigned>(d.month), static_cast<unsigned>(d.day)));
+}
+
+/* timestamp[us, UTC] value (epoch microseconds) */
+[[nodiscard]] constexpr int64_t mf_datetime_to_unix_us(const MfDate& d, const MfTime& t) noexcept {
+    if (!is_plausible_date(d)) return 0;
+    const int64_t days = days_from_civil(d.year, static_cast<unsigned>(d.month), static_cast<unsigned>(d.day));
+    const int64_t sod_us =
+        (static_cast<int64_t>(t.hour) * 3600 + static_cast<int64_t>(t.min) * 60 + t.sec) * 1000000LL +
+        static_cast<int64_t>(t.hundredths) * 10000LL;   // 1 hundredth = 10,000 µs
+    return days * 86400LL * 1000000LL + sod_us;
+}
+
+/*════════════════════════════════════════════════════════════════
   Metadata-Driven Field Access
 ════════════════════════════════════════════════════════════════*/
 

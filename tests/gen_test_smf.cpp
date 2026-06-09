@@ -930,19 +930,15 @@ std::vector<uint8_t> make_smf79_13_record(int year, int ddd, uint32_t time_hs, c
     return finish(std::move(body));
 }
 
-std::vector<uint8_t> make_smf1154_record(int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
+std::vector<uint8_t> make_smf1154_record(uint16_t subtype, int year, int ddd, uint32_t time_hs, const char* sys_id = "SYS1") {
     std::vector<uint8_t> body;
     put_header(body, 1154, year, ddd, time_hs, sys_id);
     
-    // Header is already 32 bytes from put_header.
-    // We need to inject Subtype at 22 and TRN at 24.
-    body[22] = 0; body[23] = 1; // Subtype 1
-    body[24] = 0; body[25] = 2; // TRN (2 triplets)
+    body[22] = static_cast<uint8_t>(subtype >> 8);
+    body[23] = static_cast<uint8_t>(subtype);
+    body[24] = 0; body[25] = 2; // TRN (2 triplets in common area)
     
-    uint32_t current_off = 32 + 2 * 12; // Triplets start at 32
-    // We'll replace the reserved bytes at 32+ with triplets.
-    // Since body is already 32 bytes, we can just append.
-    
+    uint32_t current_off = 32 + 2 * 12;
     std::vector<uint8_t> data;
     put_triplet(data, current_off, 64, 1); // [0] Common Header
     current_off += 64;
@@ -952,22 +948,47 @@ std::vector<uint8_t> make_smf1154_record(int year, int ddd, uint32_t time_hs, co
     // Common Header Section
     put_ebcdic8(data, sys_id);
     put_ebcdic8(data, "PLEX1   ");
-    put_ebcdic8(data, "TCPIP   ");
+    put_ebcdic8(data, "TESTJOB ");
     for(int i=0; i<8; ++i) data.push_back(0);
-    put_ebcdic8(data, "REQ0001 "); // Request ID (24 bytes)
+    put_ebcdic8(data, "REQ0001 ");
     for(int i=0; i<16; ++i) data.push_back(0);
+    while (data.size() < 24 + 64) data.push_back(0); // Pad to 64 bytes
 
-    // Subtype Spec Section (contains its own triplets)
-    uint32_t spec_base = current_off - 128;
-    put_u32_be(data, 1); // 1 triplet
-    uint32_t tcp_off = spec_base + 4 + 12;
-    put_triplet(data, tcp_off, 16, 1); // [0] TCP Stack Info
+    // Subtype Spec Section
+    size_t spec_start = data.size();
+    put_u32_be(data, 1); // 1 triplet in specific area
+    uint32_t data_off = static_cast<uint32_t>(32 + 24 + 64 + 4 + 12);
     
-    // TCP Stack Info
-    put_ebcdic8(data, "TCPIP   "); // stack name
-    data.push_back(4);            // ip version
-    for(int i=0; i<3; ++i) data.push_back(0);
-    put_u32_be(data, 3600);       // up time
+    if (subtype == 1) {
+        put_triplet(data, data_off, 16, 1); // TCP Stack
+        put_ebcdic8(data, "TCPIP   ");
+        data.push_back(4);
+        for(int i=0; i<3; ++i) data.push_back(0);
+        put_u32_be(data, 3600);
+    } else if (subtype == 2) {
+        put_triplet(data, data_off, 112, 1); // FTP Config
+        put_ebcdic4(data, "FDCF");
+        data.push_back(1); // anonymous allowed
+        for(int i=0; i<16; ++i) data.push_back(0);
+        put_u16_be(data, 300); // inactivity
+        for(int i=0; i<4; ++i) data.push_back(0);
+        put_u16_be(data, 20);  // port min
+        put_u16_be(data, 21);  // port max
+        for(int i=0; i < (109 - 25 - 4); ++i) data.push_back(0);
+        data.push_back('R'); // session reuse
+        for(int i=0; i<2; ++i) data.push_back(0);
+    } else if (subtype == 83) {
+        put_triplet(data, data_off, 20, 1); // RACF Summary
+        data.push_back(1); // active
+        for(int i=0; i<10; ++i) data.push_back(0);
+        put_u16_be(data, 8);  // min len
+        put_u16_be(data, 10); // history
+        put_u16_be(data, 30); // interval
+        for(int i=0; i<3; ++i) data.push_back(0);
+    } else {
+        put_triplet(data, 0, 0, 0);
+    }
+    while (data.size() < spec_start + 128) data.push_back(0); // Pad to 128 bytes
 
     body.insert(body.end(), data.begin(), data.end());
     return finish(std::move(body));
@@ -1287,7 +1308,9 @@ int main(int argc, char* argv[]) {
             emit(make_smf79_2_record(Y, ddd, t, sys));
             emit(make_smf79_13_record(Y, ddd, t, sys));
             emit(make_smf98_record(Y, ddd, t, sys));
-            emit(make_smf1154_record(Y, ddd, t, sys));
+            emit(make_smf1154_record(1, Y, ddd, t, sys));
+            emit(make_smf1154_record(2, Y, ddd, t, sys));
+            emit(make_smf1154_record(83, Y, ddd, t, sys));
             emit_small(99, true, 1); // subtype 1
             emit_small(99, true, 2); // subtype 2
             emit(make_smf113_record(Y, ddd, t, sys));
@@ -1333,7 +1356,9 @@ int main(int argc, char* argv[]) {
 
             // High-Frequency Throughput
             emit(make_smf98_record(Y, DAY, t, sys));
-            emit(make_smf1154_record(Y, DAY, t, sys));
+            emit(make_smf1154_record(1, Y, DAY, t, sys));
+            emit(make_smf1154_record(2, Y, DAY, t, sys));
+            emit(make_smf1154_record(83, Y, DAY, t, sys));
 
             // Interval records (Subtype 2) for long-running regions
             emit(make_smf30_record(2, Y, DAY, t, "CICSPROD", "CICSSTEP", 5000, 1200, sys));

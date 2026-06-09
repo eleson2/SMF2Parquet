@@ -135,6 +135,35 @@ public:
         return s;
     }
 
+    /* PIC X — EBCDIC to ASCII, into provided buffer */
+    constexpr void read_ebcdic_to_buf(char* dst, std::size_t len,
+                                      EbcdicCodepage cp = EbcdicCodepage::CP037) {
+        assert(can_read(len));
+        const auto& table = get_ebcdic_table(cp);
+        for (std::size_t i = 0; i < len; ++i)
+            dst[i] = static_cast<char>(table[u8at(pos + i)]);
+        pos += len;
+    }
+
+    /* PIC X — EBCDIC to ASCII, trimmed, into provided buffer. Returns actual length. */
+    constexpr std::size_t read_ebcdic_trimmed_to_buf(char* dst, std::size_t len,
+                                                     EbcdicCodepage cp = EbcdicCodepage::CP037) {
+        assert(can_read(len));
+        const auto& table = get_ebcdic_table(cp);
+        std::size_t last_not_space = 0;
+        bool found_non_space = false;
+        for (std::size_t i = 0; i < len; ++i) {
+            const char c = static_cast<char>(table[u8at(pos + i)]);
+            dst[i] = c;
+            if (c != ' ') {
+                last_not_space = i + 1;
+                found_non_space = true;
+            }
+        }
+        pos += len;
+        return found_non_space ? last_not_space : 0;
+    }
+
     /* PIC X — EBCDIC to ASCII, default CP037 */
     [[nodiscard]] constexpr std::string read_ebcdic(std::size_t len,
                                                     EbcdicCodepage cp = EbcdicCodepage::CP037) {
